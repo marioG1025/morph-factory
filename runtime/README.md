@@ -25,6 +25,8 @@ The Python desk saves the report before asking its checkout's live host to notif
 
 The private stdio operation projects the four permitted fields and checks the live Compare release before publishing. A transient notification failure starts a backoff retry against the current saved report, including when peers stay connected. If the whole desk stops between saving and notifying, the first session bootstrap reconciles the saved run with the LLP cache before a peer subscribes. Repeating the same marker acknowledges the existing journal entry. Changing drafts or withdrawing the release prevents an old run from being published as current. [Wire regressions](tests/review-host.test.mjs) · [Two-document process interruption](../docs/experiments/desk-restart.md)
 
+On a matching notification, the reviewer reads `GET /api/comparisons/<run>` and receives the saved comparison and draft generation. The full desk state remains available for initial page load. Seven passive reviewers on an eight-tab desk each issued one scoped read. [Measured wire and HTTP payloads](../docs/experiments/shared-comparison.md)
+
 ## Run and reproduce
 
 Node 22 or later is required. The Python launcher checks `MORPH_NODE`, the normal executable path, and the bundled Codex runtime when available. The first use installs the locked `ws` dependency with npm lifecycle scripts disabled. To prepare dependencies explicitly, from the repository root run:

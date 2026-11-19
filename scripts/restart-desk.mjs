@@ -78,7 +78,7 @@ try {
   for (const page of pages) {
     page.on("request", req => {
       const path = new URL(req.url()).pathname;
-      if (path === "/api/state" && page === peer) reads++;
+      if (path.startsWith("/api/comparisons/") && page === peer) reads++;
       if (path === "/api/compare" && req.method() === "POST") {
         if (page === peer) peerPosts++;
         else operatorPosts++;

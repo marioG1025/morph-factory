@@ -163,11 +163,16 @@ async function reflectSharedComparison() {
   const current = () => !destroyed && mirrorLookup === lookup && digestRequest === revision &&
     host.version === marker.releaseVersion && host.kv.get(comparisonKey) === raw;
   try {
-    const state = await request("/api/state");
-    const draft = state.draft;
-    const result = draft?.comparison;
-    if (!current() || state.draftGeneration !== lastGeneration || draft?.base !== marker.base ||
-        draft.diff !== lastDiff || result?.run !== marker.run || result.base !== marker.base ||
+    const response = await fetch("/api/comparisons/" + marker.run, {cache:"no-store"});
+    if (!response.ok) {
+      // An older run may already have been superseded. A new marker starts its own lookup.
+      if (response.status >= 500 || response.status === 408 || response.status === 429) {
+        throw Error("Comparison temporarily unavailable");
+      }
+      return;
+    }
+    const {draftGeneration, comparison:result} = await response.json();
+    if (!current() || draftGeneration !== lastGeneration || result?.run !== marker.run || result.base !== marker.base ||
         result.digest !== marker.digest || result.releaseVersion !== marker.releaseVersion) return;
     report = result;
     record("Received comparison for this draft · " + marker.base.slice(0, 10));

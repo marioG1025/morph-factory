@@ -53,6 +53,32 @@ async function waitForReviewAcks(page, count) {
   }, count);
 }
 
+async function compareAcrossTabs(pages, actor) {
+  const posts = pages.map(() => 0), reads = pages.map(() => 0);
+  for (const [index,page] of pages.entries()) {
+    page.on("request", request => {
+      const path = new URL(request.url()).pathname;
+      if (request.method() === "POST" && path === "/api/compare") posts[index]++;
+      if (request.method() === "GET" && /^\/api\/comparisons\/[0-9a-f]{32}$/.test(path)) reads[index]++;
+    });
+  }
+  const response = actor.waitForResponse(r => r.url().endsWith("/api/compare") && r.request().method() === "POST");
+  const started = performance.now();
+  await actor.locator("#layer-compare").click();
+  const report = await (await response).json();
+  assert.equal(report.summary.fixed, 4);
+  assert.equal(report.summary.unchanged, 2);
+  const pane = '[data-comparison-run="' + report.run + '"]';
+  await Promise.all(pages.map(page => page.locator(pane + " .comparison-conclusion").waitFor()));
+  const allVisibleMs = Math.round(performance.now() - started);
+  for (const [index,page] of pages.entries()) {
+    assert.equal(posts[index], Number(page === actor));
+    assert.equal(reads[index], Number(page !== actor));
+    assert.equal(await page.locator(pane + ' [data-kind="fixed"]').count(), 4);
+  }
+  return {fixed:report.summary.fixed, unchanged:report.summary.unchanged, allVisibleMs, posts, reads};
+}
+
 async function measureGroup(size, mode) {
   let desk, browser;
   let trial = 0;
@@ -98,13 +124,10 @@ async function measureGroup(size, mode) {
         lastMs, perTabMs:offsets, release:status.version, continuity:true, freeGiB:gib(freemem())});
       if (trial === trials) {
         const slowest = pages[offsets.indexOf(lastMs)];
-        const response = slowest.waitForResponse(r => r.url().endsWith("/api/compare") && r.request().method() === "POST");
-        await slowest.locator("#layer-compare").click();
-        const report = await (await response).json();
-        assert.equal(report.summary.fixed, 4);
-        assert.equal(report.summary.unchanged, 2);
+        const result = await compareAcrossTabs(pages, slowest);
+        assert.deepEqual(await Promise.all(pages.map(draftState)), original);
         assert.deepEqual(errors, []);
-        log("comparison", {tabs:size, mode, fixed:report.summary.fixed, unchanged:report.summary.unchanged});
+        log("comparison", {tabs:size, mode, ...result});
       } else {
         await operator.locator("#restore-review:enabled").click();
         await Promise.all(pages.map(page => page.locator("#layer-compare").waitFor({state:"detached"})));

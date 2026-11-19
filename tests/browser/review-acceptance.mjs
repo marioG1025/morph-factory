@@ -16,13 +16,21 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
   const context = await browser.newContext();
   const first = await context.newPage();
   const second = await context.newPage();
-  const sharedFrames = [];
+  const sharedFrames = [], sharedFrameBytes = [];
   const comparisonPosts = [];
-  let peerReads = 0;
-  second.on("request", request => {if (new URL(request.url()).pathname === "/api/state") peerReads++;});
+  const peerReads = [];
+  let fullStateReads = 0;
+  second.on("request", request => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/comparisons/")) peerReads.push(path);
+    if (path === "/api/state") fullStateReads++;
+  });
   second.on("websocket", ws => ws.on("framereceived", message => {
     const frame = JSON.parse(message.payload.toString());
-    if (frame.t === "shared" && frame.set?.length) sharedFrames.push(frame);
+    if (frame.t === "shared" && frame.set?.length) {
+      sharedFrames.push(frame);
+      sharedFrameBytes.push(Buffer.byteLength(message.payload));
+    }
   }));
   const pageErrors = [];
   for (const p of [first,second]) {
@@ -81,7 +89,10 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
     return {session:window.documentSession, diff:draft.diff, base:draft.base};
   });
   assert.deepEqual(after, initial);
-  const beforeReads = peerReads;
+  assert.ok(fullStateReads >= 1, "Initial native state bootstrap");
+  const beforeFullReads = fullStateReads;
+  const responsePromise = second.waitForResponse(response =>
+    new URL(response.url()).pathname.startsWith("/api/comparisons/"));
   const observerDocument = await second.evaluate(() => performance.timeOrigin);
   await first.locator("#layer-compare").click();
   for (const page of [first,second]) {
@@ -92,7 +103,8 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
   const run = await first.locator("[data-comparison-run]").getAttribute("data-comparison-run");
   assert.match(run, /^[0-9a-f]{32}$/);
   assert.equal(await second.locator("[data-comparison-run]").getAttribute("data-comparison-run"), run);
-  assert.equal(peerReads - beforeReads, 1);
+  assert.deepEqual(peerReads, ["/api/comparisons/" + run]);
+  assert.equal(fullStateReads, beforeFullReads);
   assert.equal(comparisonPosts.length, 1);
   assert.equal(comparisonPosts[0], first);
   assert.equal(sharedFrames.length, 1);
@@ -101,6 +113,15 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
   assert.deepEqual(sharedFrames[0], {t:"shared", set:[[key,encoded]], del:[]});
   assert.deepEqual(JSON.parse(encoded), {run, base:initial.base,
     digest:createHash("sha256").update(initial.diff).digest("hex"), releaseVersion:2});
+  const response = await responsePromise;
+  assert.equal(response.status(), 200);
+  const reportBody = await response.body();
+  const fullBody = await (await first.request.get(new URL("/api/state", desk.url).href)).body();
+  const full = JSON.parse(fullBody);
+  assert.equal(full.draft.comparison.run, run);
+  assert.deepEqual(JSON.parse(reportBody), {draftGeneration:full.draftGeneration, comparison:full.draft.comparison});
+  t.diagnostic("UTF-8 payload bytes, excluding headers and framing: LLP shared delta " + sharedFrameBytes[0] +
+    ", peer comparison response " + reportBody.length + ", full desk state " + fullBody.length);
   assert.equal(await second.evaluate(() => performance.timeOrigin), observerDocument);
   assert.equal(await diff.evaluate(el => document.activeElement === el), true);
   assert.deepEqual(await diff.evaluate(el => ({text:getSelection().toString(), top:el.scrollTop, left:el.scrollLeft})), selected);

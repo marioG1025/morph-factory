@@ -141,17 +141,17 @@ test("duplicate mirror frames and a late document cannot replace a recreated Vib
     await page.goto(desk.url);
     await page.locator("#approve-comparison:enabled").waitFor();
   }
-  const {draft: original} = await (await actor.request.get(new URL("/api/state", desk.url).href)).json();
+  const {draft: original, draftGeneration: originalGeneration} = await (await actor.request.get(new URL("/api/state", desk.url).href)).json();
   await actor.locator("#approve-comparison").click();
   await observer.locator("#layer-compare:enabled").waitFor();
   let held = 0, release, delivered;
   const hold = new Promise(resolve => {release = resolve;});
   const done = new Promise(resolve => {delivered = resolve;});
   t.after(release);
-  await observer.route("**/api/state", async route => {
+  await observer.route("**/api/comparisons/*", async route => {
     const response = await route.fetch();
-    const state = await response.json();
-    if (state.draft?.title === original.title && state.draft?.comparison) {
+    const document = await response.json();
+    if (document.draftGeneration === originalGeneration && document.comparison) {
       held++;
       await hold;
       await route.fulfill({response});
@@ -175,13 +175,72 @@ test("duplicate mirror frames and a late document cannot replace a recreated Vib
   await observer.locator('#layer-checks[aria-pressed="true"]').waitFor();
   assert.equal(held, 1, "Duplicated run notifications issue a single document read");
   assert.equal(await observer.locator(".comparison-conclusion").count(), 0, "Late evidence cannot enter the replacement");
-  const checkedOtherDraft = actor.waitForResponse(response => new URL(response.url()).pathname === "/api/state");
+  const checkedOtherDraft = actor.waitForResponse(response => new URL(response.url()).pathname.startsWith("/api/comparisons/"));
   await observer.locator("#layer-compare").click();
   await observer.locator(".comparison-conclusion").waitFor();
   const fresh = await (await checkedOtherDraft).json();
-  assert.equal(fresh.draft.title, "Recreated calendar draft");
-  assert.notEqual(await observer.locator("[data-comparison-run]").getAttribute("data-comparison-run"), old);
+  assert.notEqual(fresh.draftGeneration, originalGeneration);
+  assert.equal(fresh.comparison.run, await observer.locator("[data-comparison-run]").getAttribute("data-comparison-run"));
+  assert.notEqual(fresh.comparison.run, old);
   await actor.locator("#layer-checks").click();
   await actor.locator('#layer-checks[aria-pressed="true"]').waitFor();
   assert.equal(await actor.locator("[data-comparison-run]").getAttribute("data-comparison-run"), old);
+});
+
+test("a peer stops reading a superseded run and retries temporary failures on its successor", {timeout:90000}, async t => {
+  const desk = await startDesk();
+  t.after(() => desk.close());
+  const browser = await launchBrowser();
+  t.after(() => browser.close());
+  const operator = await browser.newPage(), peer = await browser.newPage();
+  let oldRun, releaseRead, sendNewFrame;
+  const holdRead = new Promise(resolve => {releaseRead = resolve;});
+  t.after(releaseRead);
+  const reads = new Map();
+  await peer.routeWebSocket(/.*/, client => {
+    const server = client.connectToServer();
+    server.onMessage(data => {
+      const frame = JSON.parse(data.toString());
+      const encoded = frame.t === "shared" && frame.set.find(([key]) => key === "shared/review/comparison")?.[1];
+      if (encoded && oldRun && JSON.parse(encoded).run !== oldRun) sendNewFrame = () => client.send(data);
+      else client.send(data);
+    });
+  });
+  await peer.route("**/api/comparisons/*", async route => {
+    const run = new URL(route.request().url()).pathname.split("/").pop();
+    oldRun ??= run;
+    const attempt = (reads.get(run) || 0) + 1;
+    reads.set(run, attempt);
+    if (run === oldRun) {
+      await holdRead;
+      await route.continue(); // The real Python endpoint now returns 404 for the superseded run.
+    } else if (attempt === 1) await route.abort("connectionreset");
+    else if (attempt === 2) await route.fulfill({status:503, body:"Try again"});
+    else await route.continue();
+  });
+  for (const page of [operator,peer]) {
+    await page.goto(desk.url);
+    await page.locator("#approve-comparison:enabled").waitFor();
+  }
+  await operator.locator("#approve-comparison").click();
+  const measure = async () => {
+    const reply = operator.waitForResponse(res => new URL(res.url()).pathname === "/api/compare");
+    await operator.locator("#layer-compare:enabled").click();
+    return (await (await reply).json()).run;
+  };
+  const first = await measure();
+  await until(() => reads.get(first) === 1);
+  const next = await measure();
+  await until(() => Boolean(sendNewFrame));
+  const missing = peer.waitForResponse(res => new URL(res.url()).pathname === "/api/comparisons/" + first);
+  releaseRead();
+  assert.equal((await missing).status(), 404);
+  // Keep the first marker current for more than two of the browser's 3 s retry ticks.
+  await new Promise(resolve => setTimeout(resolve, 6600));
+  assert.equal(reads.get(first), 1);
+  assert.equal(await peer.locator("[data-comparison-run]").count(), 0);
+  sendNewFrame();
+  await peer.locator('[data-comparison-run="' + next + '"]').waitFor({timeout:23000});
+  assert.equal(reads.get(next), 3);
+  assert.equal(await peer.locator('[data-kind="fixed"]').count(), 4);
 });
