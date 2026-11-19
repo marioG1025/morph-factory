@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: factory-checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: Review desk on ${{ matrix.os }} (Python ${{ matrix.python }}, Node ${{ matrix.node }})
