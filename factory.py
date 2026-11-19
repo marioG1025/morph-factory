@@ -215,7 +215,11 @@ def verify_proposal(repo, base, diff, command=None):
             result["tree"] = _git(clone, "write-tree").decode().strip()
             if command:
                 # This is a disposable checkout, not an OS sandbox. The caller supplies trusted argv.
-                result["output"] = _run(command, clone).decode("utf-8", "replace")[-6000:]
+                env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+                env.pop("MORPH_CASE_REPORT", None)
+                env.update(PYTHONIOENCODING="utf-8", MORPH_CHECK_SCOPE="patch",
+                           MORPH_CHANGED_PATHS=json.dumps(result["files"], ensure_ascii=True))
+                result["output"] = _run(command, clone, env=env).decode("utf-8", "replace")[-6000:]
                 notes.append("Trusted verification command passed: " + subprocess.list2cmdline(command))
             else:
                 notes.append("No project test command was requested.")

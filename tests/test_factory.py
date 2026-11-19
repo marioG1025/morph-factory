@@ -63,6 +63,11 @@ class LocalReview(unittest.TestCase):
             factory.create_review_branch(self.repo, **self.draft, verification=result)
         self.assertEqual(self.git("branch", "--list", "morph/*"), "")
 
+    def test_unicode_check_output_on_a_pipe(self):
+        result = self.verify([sys.executable, "-c", "print(chr(0x2713) + ' build complete')"])
+        self.assertTrue(result["ok"], result["output"])
+        self.assertIn("✓ build complete", result["output"])
+
     def test_new_head_invalidates_receipt(self):
         result = self.verify()
         self.git("commit", "--allow-empty", "-qm", "Advance main")

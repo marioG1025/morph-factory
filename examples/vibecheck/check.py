@@ -28,6 +28,14 @@ def frontend_build():
     npm = shutil.which("npm.cmd") or shutil.which("npm")
     if not npm:
         return record("error", "Install npm to run the production build.")
+    command = [npm]
+    # Windows' npm.cmd can select a different architecture of Node from PATH.
+    # Use the same interpreter for npm's native package selection and its scripts.
+    if os.name == "nt":
+        cli = Path(npm).parent / "node_modules/npm/bin/npm-cli.js"
+        node = shutil.which("node")
+        if node and cli.is_file():
+            command = [node, str(cli)]
     # The pinned public example lacks a lockfile. Make its two installs identical
     # when the requested dependency set still matches the recorded fixture.
     if not (FRONT / "package-lock.json").exists():
@@ -38,9 +46,9 @@ def frontend_build():
         if all(package.get(field) == root.get(field) for field in fields):
             shutil.copyfile(lock, FRONT / "package-lock.json")
     install = "ci" if (FRONT / "package-lock.json").exists() else "install"
-    if subprocess.run([npm, install, "--ignore-scripts", "--no-audit", "--no-fund"], cwd=FRONT).returncode:
+    if subprocess.run([*command, install, "--ignore-scripts", "--no-audit", "--no-fund"], cwd=FRONT).returncode:
         return record("error", "Frontend dependencies could not be installed. Inspect the npm output.")
-    built = subprocess.run([npm, "run", "build"], cwd=FRONT, stdout=subprocess.PIPE,
+    built = subprocess.run([*command, "run", "build"], cwd=FRONT, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, encoding="utf-8", errors="replace")
     print(built.stdout, flush=True)
     if built.returncode:
@@ -51,13 +59,16 @@ def frontend_build():
 
 def main():
     hints = os.environ.get("MORPH_CHANGED_PATHS")
-    if hints is not None:
+    whole_commit = os.environ.get("MORPH_CHECK_SCOPE") == "head"
+    if whole_commit:
+        paths = set()
+    elif hints is not None:
         paths = set(json.loads(hints))
     else:
         staged = subprocess.check_output(["git", "diff", "--cached", "--name-only", "-z"])
         paths = set(staged.decode("utf-8").rstrip("\0").split("\0")) if staged else set()
-    date_check = bool(paths & DATE_PAGES)
-    build_check = any(p.startswith(f"{FRONT.as_posix()}/") and p not in DATE_PAGES for p in paths)
+    date_check = whole_commit or bool(paths & DATE_PAGES)
+    build_check = whole_commit or any(p.startswith(f"{FRONT.as_posix()}/") and p not in DATE_PAGES for p in paths)
     status = 0
     if date_check:
         status = subprocess.run(["node", str(HERE / "check-dates.cjs")]).returncode
