@@ -12,6 +12,8 @@
 | VibeCheck frontend production build | TypeScript rejects `import.meta.env` with TS2339. | Adding the Vite client types allows TypeScript and Vite to complete. The check uses the same recorded dependency set for both revisions. [Product patch](../../ui/lab/vite-types.patch) · [Build runner](../../examples/vibecheck/check.py) |
 | Factory Change review | The original server denies comparison. An open draft offers diff and check output. | The operator rehearses and approves the signed pair. Both open clients gain a working comparison. Restore publishes the previous pair under a higher version. [Wire tests](../../runtime/tests/review-host.test.mjs) |
 | The same layer on a different host | The browser uses the upstream JavaScript host. | An unmodified upstream Go host independently verified the same signed manifests and produced the same complete UI tree and key/value state at six checkpoints. [Go experiment](go-host.md) |
+| The factory’s own test discovery | The original Python invocation appeared to succeed after discovering zero tests. | The factory reviewed a one-file fix that made 13 tests discoverable. The verified candidate tree matched the commit saved on the local branch. [Self-hosting run](self-host.md) |
+| Canary approval in a fixed three-client cohort | One stable desk receives Compare while another remains on the original review. | Waiting for the selected client’s ACK allows promotion. The controller can report completion before the downstream desk has acknowledged the change. Widening can produce a stale-version NACK on the already upgraded client. [Fleet experiment](fleet.md) |
 
 VibeCheck’s reference revision is `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24`. The focused calendar probe calls the two checked-out formatter functions. The separate screenshots exercise list and detail navigation against a fixture API. Spotify authentication and production event feeds are outside that test. [Pinned product](https://github.com/marioG1025/VibeCheck/tree/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24) · [Original detail page](../../ui/lab/baseline-detail.png) · [Corrected detail page](../../ui/lab/corrected-detail.png)
 
@@ -28,10 +30,10 @@ VibeCheck’s reference revision is `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24`. 
 ## Verify a downloadable result
 
 ```sh
-node scripts/inspect-receipt.mjs docs/experiments/receipts/vibecheck-calendar.json
+node scripts/inspect-receipt.mjs docs/experiments/receipts/vibecheck-calendar.json --bundled
 ```
 
-This checks the release signature, its two code hashes as declared in the manifest, and the separate signed server rehearsal. The example reports four fixed cases, two unchanged, and zero regressions. Comparison counts are an unsigned observation from the local checkout. To verify publisher identity against a key obtained independently, supply that JWK as the second argument. To reproduce the product result itself, run the [VibeCheck walkthrough](../../README.md#try-it-on-a-real-product).
+This checks the release signature, hashes the shipped browser and server Wasm bytes, and verifies the separate signed server rehearsal. The example reports four fixed cases, two unchanged, and zero regressions. Comparison counts are an unsigned observation from the local checkout. To verify publisher identity against a key obtained independently, supply that JWK as the second argument. To reproduce the product result itself, run the [VibeCheck walkthrough](../../README.md#try-it-on-a-real-product).
 
 ## Reproduce from source
 

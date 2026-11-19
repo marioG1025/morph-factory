@@ -6,10 +6,13 @@ on:
     paths:
       - ".github/workflows/interop.yml"
       - "scripts/interop/**"
+      - "scripts/fleet/**"
       - "ui/layers/*.wasm"
       - "runtime/review-host.mjs"
       - "runtime/layers/*.wasm"
       - "runtime/vendor/llp/**"
+      - "docs/upstream/**"
+      - "scripts/check-upstream.py"
 
 permissions:
   contents: read
@@ -29,5 +32,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
+      - name: Check out the pinned LLP reference
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: nik190799/live-layer-protocol
+          ref: d14ebf9f8d17a45a3619231d4a9c63c00845bf96
+          path: .ci/llp
+          persist-credentials: false
+      - name: Verify each vendored file and documented upstream delta
+        run: python3 scripts/check-upstream.py --checkout .ci/llp
       - name: Replay signed factory releases through both client hosts
-        run: python3 scripts/interop/run.py
+        run: python3 scripts/interop/run.py --upstream .ci/llp
+      - name: Promote a canary through two LLP channels
+        run: python3 scripts/fleet/run.py --upstream .ci/llp
