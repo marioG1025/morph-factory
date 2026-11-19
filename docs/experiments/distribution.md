@@ -30,6 +30,8 @@ Install the optional [Playwright test dependencies](../../tests/browser/README.m
 node scripts/packaging/verify-zip.mjs
 ```
 
+To test a particular release download, pass `--archive "/path/to/Morph-Factory-v0.1.0.zip"`. Supply `--revision` with the full Git commit for an additional check against the ZIP’s embedded commit ID. The [source ZIP workflow](../../.github/workflows/package.yml) exercises the same extracted-package path on macOS, Ubuntu and Windows.
+
 Pass `--scratch "path with spaces"` to choose the temporary workspace. The [smoke runner](../../scripts/packaging/verify-zip.mjs) launches the package through the Windows Python entry point below and drives the browser itself.
 
 ```powershell
