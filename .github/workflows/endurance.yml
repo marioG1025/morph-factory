@@ -1,0 +1,58 @@
+name: VibeCheck endurance
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Real time to keep the same two VibeCheck drafts open
+        required: true
+        default: '5'
+        type: choice
+        options: ['5', '20', '65']
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Open-draft recovery on Ubuntu
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Prepare the local desk and browser
+        run: |
+          npm ci --prefix runtime --omit=dev --ignore-scripts
+          cd tests/browser
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Approve, compare, verify delivery and restore once per minute
+        env:
+          MORPH_SOAK_MINUTES: ${{ inputs.minutes }}
+          MORPH_SOAK_INTERVAL_SECONDS: '60'
+        run: |
+          set -o pipefail
+          node tests/browser/soak.mjs | tee "$RUNNER_TEMP/endurance.jsonl"
+      - name: Summarize the observed cycles
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = Path(os.environ["RUNNER_TEMP"]) / "endurance.jsonl"
+          records = [json.loads(line) for line in report.read_text().splitlines()] if report.exists() else []
+          cycles = [r for r in records if r["kind"] == "cycle"]
+          full = sum(r["peerReceived"] == "full" for r in cycles)
+          completed = any(r["kind"] == "complete" for r in records)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              print(f"**{len(cycles)} completed comparison cycles** · {full} full snapshots · {len(cycles)-full} deltas", file=summary)
+              print(f"\nCompleted the requested interval: **{completed}**.", file=summary)
+          PY

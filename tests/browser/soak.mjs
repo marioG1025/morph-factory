@@ -34,8 +34,13 @@ try {
   });
   const pages = await Promise.all(contexts.map(context => context.newPage()));
   const errors = [];
-  let peerPosts = 0, signals = [];
-  pages[1].on("request", req => {if (new URL(req.url()).pathname === "/api/compare" && req.method() === "POST") peerPosts++;});
+  let peerPosts = 0, reportReads = 0, stateReads = 0, signals = [];
+  pages[1].on("request", req => {
+    const path = new URL(req.url()).pathname;
+    if (path === "/api/compare" && req.method() === "POST") peerPosts++;
+    if (/^\/api\/comparisons\/[0-9a-f]{32}$/.test(path)) reportReads++;
+    if (path === "/api/state") stateReads++;
+  });
   pages[1].on("websocket", socket => socket.on("framereceived", frame => {
     const message = JSON.parse(frame.payload.toString());
     for (const [key, value] of message.t === "shared" ? message.set || [] : []) {
@@ -56,6 +61,7 @@ try {
     const [active, observer] = pages;
     const cycle = completed + 1;
     const began = performance.now();
+    const priorReports = reportReads, priorStates = stateReads;
     signals = [];
     const missed = cycle % offlineEvery === 0;
     if (missed) {
@@ -92,6 +98,8 @@ try {
     assert.equal(await observer.locator('.comparison-cases [data-kind="fixed"]').count(), 4);
     assert.equal(await observer.locator("#layer-diff").getAttribute("aria-pressed"), "true");
     assert.equal(peerPosts, 0);
+    assert.equal(reportReads - priorReports, 1);
+    assert.equal(stateReads - priorStates, 0);
     assert.ok(signals.some(signal => signal.run === result.run && signal.full === missed), "Observer received matching LLP marker");
     await active.locator("#restore-review").click();
     await Promise.all(pages.map(page => page.locator("#layer-compare").waitFor({state:"hidden",timeout:20000})));
@@ -103,7 +111,8 @@ try {
     completed++;
     log("cycle", {cycle, elapsedMs:Math.round(performance.now() - began), fixed:result.summary.fixed,
       regressed:result.summary.regressed, release:result.releaseVersion, documentsPreserved:pages.length,
-      observerMissedOffer:missed, peerRun:result.run, peerReceived:missed ? "full" : "delta"});
+      observerMissedOffer:missed, peerRun:result.run, peerReceived:missed ? "full" : "delta",
+      reportReads:reportReads - priorReports, stateReads:stateReads - priorStates, peerPosts});
     const left = started + duration * 60000 - Date.now();
     if (left <= 0) break;
     await delay(Math.min(interval * 1000, left));
