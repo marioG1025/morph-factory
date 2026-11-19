@@ -49,7 +49,7 @@ def ensure_dependencies():
             raise ValueError("Could not install the locked WebSocket dependency. " + hint)
 
 
-def _take_lock(path):
+def take_state_lock(path, busy_message):
     # An OS-held lock is released automatically when the Python process exits.
     file = path.open("a+b")
     try:
@@ -66,7 +66,7 @@ def _take_lock(path):
         return file
     except OSError as exc:
         file.close()
-        raise ValueError("Another desk owns this live state. Open that desk or choose a different --state-dir.") from exc
+        raise ValueError(busy_message) from exc
 
 
 class LiveRelease:
@@ -82,7 +82,8 @@ class LiveRelease:
         node = node_binary()
         ensure_dependencies()
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.ownership = _take_lock(self.directory / "host.lock")
+        self.ownership = take_state_lock(self.directory / "host.lock",
+            "Another desk owns this live state. Open that desk or choose a different --state-dir.")
         try:
             process = subprocess.Popen([node, str(RUNTIME / "review-host.mjs"), str(self.directory)],
                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,

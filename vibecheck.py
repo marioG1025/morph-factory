@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import webbrowser
 from urllib.request import urlopen
-from server import Desk, RequestHandler, default_state_dir, git_value
+from server import open_desk, RequestHandler, default_state_dir, git_value
 
 BASE = "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24"
 ROOT = Path(__file__).resolve().parent
@@ -35,12 +36,19 @@ def main():
     repo = args.repo or (args.state_dir / "examples" / "VibeCheck")
     if args.repo is None and not repo.exists():
         repo.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "clone", "--no-checkout", URL, str(repo)], check=True)
-        subprocess.run(["git", "-C", str(repo), "checkout", "--detach", BASE], check=True)
+        with tempfile.TemporaryDirectory(prefix=".morph-setup-", dir=repo.parent) as staging:
+            candidate = Path(staging) / "VibeCheck"
+            subprocess.run(["git", "clone", "--no-checkout", URL, str(candidate)], check=True)
+            subprocess.run(["git", "-C", str(candidate), "checkout", "--detach", BASE], check=True)
+            try:
+                candidate.rename(repo)
+            except OSError:
+                if not repo.is_dir():
+                    raise
     if git_value(repo, "--verify", "HEAD") != BASE:
         sys.exit("This case file needs VibeCheck at " + BASE + ". Use server.py --repo PATH for any other revision.")
-    desk = Desk(repo, args.state_dir, [sys.executable, str(ROOT / "examples/vibecheck/check.py")])
-    with ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler) as server:
+    command = [sys.executable, str(ROOT / "examples/vibecheck/check.py")]
+    with open_desk(repo, args.state_dir, command) as desk, ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler) as server:
         server.desk = desk
         desk.act("scan", {})
         if not desk.draft:
@@ -54,8 +62,6 @@ def main():
             server.serve_forever()
         except KeyboardInterrupt:
             pass
-        finally:
-            desk.live.close()
 
 if __name__ == "__main__":
     try:

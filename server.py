@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timezone
 from urllib.parse import unquote, urlsplit
@@ -18,7 +19,7 @@ from urllib.parse import unquote, urlsplit
 from factory import create_review_branch, inspect_repo, verify_proposal
 from comparison import ComparisonConflict, compare_proposal, draft_digest
 from propose import propose
-from live_release import LiveRelease, live_get, live_post
+from live_release import LiveRelease, live_get, live_post, take_state_lock
 
 
 UI = Path(__file__).resolve().parent / "ui"
@@ -43,6 +44,25 @@ def default_state_dir():
     return Path(os.getenv("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "morph-factory"
 
 
+def checkout_key(repo):
+    return hashlib.sha256(os.path.normcase(str(repo)).encode()).hexdigest()
+
+
+@contextmanager
+def open_desk(repo, state_dir, command):
+    """Hold ownership across draft loading, local writes and release-host restarts."""
+    root = Path(git_value(repo, "--show-toplevel")).resolve()
+    state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = state_dir / (checkout_key(root) + ".desk.lock")
+    with take_state_lock(path, "This checkout already has a desk using that state directory. "
+                         "Open the running desk or select a different --state-dir."):
+        desk = Desk(root, state_dir, command)
+        try:
+            yield desk
+        finally:
+            desk.live.close()
+
+
 class Desk:
     def __init__(self, repo, state_dir, command):
         self.repo = str(Path(git_value(repo, "--show-toplevel")).resolve())
@@ -50,7 +70,7 @@ class Desk:
         self.command = command
         self.lock = threading.RLock()
         self.agent = {"status": "idle", "message": ""}
-        repo_hash = hashlib.sha256(os.path.normcase(self.repo).encode()).hexdigest()
+        repo_hash = checkout_key(self.repo)
         self.file = state_dir / f"{repo_hash}.json"
         self.live = LiveRelease(state_dir / "llp" / repo_hash)
         self.scan = None
@@ -386,19 +406,15 @@ def main():
     if not 0 <= args.port <= 65535:
         parser.error("Port must be between 0 and 65535.")
     try:
-        desk = Desk(args.repo, args.state_dir, args.check)
-        server = ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler)
-    except (ValueError, OSError, subprocess.SubprocessError) as exc:
-        parser.exit(1, f"Could not start Morph Factory: {exc}\n")
-    server.desk = desk
-    print(f"Morph Factory at http://127.0.0.1:{server.server_port}/ reviewing {desk.repo}", flush=True)
-    try:
-        server.serve_forever()
+        with open_desk(args.repo, args.state_dir, args.check) as desk:
+            with ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler) as server:
+                server.desk = desk
+                print(f"Morph Factory at http://127.0.0.1:{server.server_port}/ reviewing {desk.repo}", flush=True)
+                server.serve_forever()
     except KeyboardInterrupt:
         pass
-    finally:
-        server.server_close()
-        desk.live.close()
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        parser.exit(1, f"Could not start Morph Factory: {exc}\n")
 
 
 if __name__ == "__main__":
