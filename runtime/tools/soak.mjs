@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { startHost } from "../review-host.mjs";
-import { LiveHost } from "../vendor/llp/llp-core.js";
+import { canonical, LiveHost, sha256, verifyManifest } from "../vendor/llp/llp-core.js";
 import { connectServer } from "../vendor/llp/remote-client.mjs";
 
 const minutes = Number(process.argv[2] || 5);
@@ -17,7 +17,7 @@ const began = Date.now(), deadline = began + minutes * 60_000;
 const summary = {startedUtc: new Date(began).toISOString(), requestedMinutes: minutes,
   status: "running", releaseTransitions: 0, clientAcks: 0, stateChecks: 0, restarts: 0,
   briefReconnects: 0, idleEvictionsObserved: 0, tokenExpiryObserved: false, tokenRenewals: 0,
-  compareGrants: 0, baselineRefusals: 0, events: []};
+  compareGrants: 0, baselineRefusals: 0, verifiedRehearsals: 0, events: []};
 const latencies = [];
 let server;
 const clients = [];
@@ -70,6 +70,16 @@ async function assertRemote() {
     }
   }
 }
+async function checkEvidence(trustedKey) {
+  const envelope = await server.command({op:"evidence"});
+  assert(await verifyManifest(envelope.manifest, envelope.sig, trustedKey));
+  const {sig, ...proof} = envelope.serverRehearsal;
+  assert(await verifyManifest(proof, sig, trustedKey));
+  assert.equal(proof.manifestDigest, await sha256(new TextEncoder().encode(canonical(envelope.manifest))));
+  assert.equal(proof.version, server.status().version);
+  assert.equal(proof.ok, true);
+  summary.verifiedRehearsals++;
+}
 let nextRestart = began + 83 * 60_000;
 try {
   server = await startHost(stateDir);
@@ -90,6 +100,7 @@ try {
     latencies.push(Math.round(performance.now()-committed));
     summary.releaseTransitions++;
     summary.clientAcks += 2;
+    await checkEvidence(initial.publicKey);
     await assertRemote();
     if (!summary.idleEvictionsObserved && minutes >= 5 && summary.releaseTransitions === 1) {
       // Upstream default idleMs is 120s; its sweeper runs every 30s.
@@ -132,6 +143,7 @@ try {
       const current = server.session();
       assert.equal(current.version, prior.version);
       assert.deepEqual(current.publicKey, prior.publicKey);
+      await checkEvidence(initial.publicKey);
       for (const client of clients) link(client, current);
       await ack();
       await assertRemote();
