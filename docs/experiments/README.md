@@ -8,6 +8,8 @@ The [adoption measurements](adoption.md) cover 40 approvals across one, two, fou
 
 The [Windows ZIP experiment](distribution.md) starts from an empty local state and the public repository, including first installation, an actual Git review branch, and a restart.
 
+The [signed-in model experiment](agent-proposal.md) follows a real calendar failure to an independently generated patch and a separate replay. In a different experiment, the factory used its own publisher to open [a draft PR on this repository](https://github.com/marioG1025/morph-factory/pull/1). Two launcher checks changed from failing to passing, and the PR includes the base, tested tree and signed release digest. Repeating publication returned the existing PR.
+
 ## The product change and the factory change
 
 | Change | Original | With the patch or release |

@@ -63,7 +63,7 @@ The publisher verifies the release and passing server rehearsal signatures with 
 
 Add `--publish` to the same command after checking the preview. A retry reuses a matching remote branch or PR. If an existing PR for that commit has different evidence, the command points you to the existing body for review.
 
-The helper supports github.com origins. The GitHub publication path was tested through its preview and local checks. Running with `--publish` performs the external operation. Merging and deployment use the repository's usual process.
+The helper supports github.com origins. Running with `--publish` pushes the local review branch and opens the draft. The [factory’s own example PR](https://github.com/marioG1025/morph-factory/pull/1) was created from the verified tree using this helper. Retrying with the same commit and evidence returned the existing PR.
 
 ## Implementation and evidence
 
