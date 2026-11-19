@@ -15,7 +15,7 @@ The standard VibeCheck launcher obtains the pinned public repository. To use an 
 
 ## Optional Firefox and WebKit acceptance
 
-The [cross-browser workflow](../../.github/workflows/browser-engines.yml) runs on manual dispatch. Each Ubuntu 24.04 job installs the browser build associated with the locked Playwright version and runs the same [two-tab Change review scenario](review-acceptance.mjs) as the default Chromium suite. The job summary records the engine version, platform and outcome. The Ubuntu WebKit result applies to Playwright’s Linux build. Safari on Apple devices is a separate test target.
+The [cross-browser workflow](../../.github/workflows/browser-engines.yml) runs on manual dispatch. Each Ubuntu 24.04 job installs the browser build associated with the locked Playwright version and runs the same [two-tab Change review scenario](review-acceptance.mjs) as the default Chromium suite. The job summary records the engine version, platform and outcome. The first run passed on both engines. [Measured builds and job logs](../../docs/experiments/browser-engines.md)
 
 To run the scenario locally on Ubuntu, use the following commands from `tests/browser` after `npm ci`. Choose `firefox` or `webkit` and leave `MORPH_BROWSER_EXECUTABLE` unset so the selected engine launches its matching build.
 
