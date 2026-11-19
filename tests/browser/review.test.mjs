@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
+import {execFileSync} from "node:child_process";
 import {join} from "node:path";
 import {launchBrowser, startDesk} from "./desk.mjs";
 
@@ -73,6 +74,19 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
   await first.locator("#restore-review").click();
   for (const page of [first,second]) await page.locator("#layer-compare").waitFor({state:"detached"});
   assert.equal(await first.locator("#layer-checks").getAttribute("aria-pressed"), "true");
+  await first.locator("#layer-verify").click();
+  await first.locator("#layer-save:enabled").waitFor({timeout:50000});
+  await first.locator("#layer-save").click();
+  await first.locator("#review-layer .publish-hint").waitFor();
+  const kept = await first.evaluate(async () => (await (await fetch("/api/state")).json()));
+  const git = (...args) => execFileSync("git", ["-C", kept.repo, ...args], {encoding:"utf8"}).trim();
+  assert.equal(kept.draft.verification.ok, true);
+  assert.equal(git("rev-parse", "refs/heads/" + kept.draft.review.branch), kept.draft.review.commit);
+  assert.equal(git("rev-parse", "HEAD"), initial.base);
+  assert.equal(git("status", "--porcelain"), "");
+  await first.locator("#layer-discard").click();
+  await first.locator("#empty-draft:visible").waitFor();
+  assert.equal(git("rev-parse", "refs/heads/" + kept.draft.review.branch), kept.draft.review.commit);
   assert.deepEqual(pageErrors, []);
 });
 

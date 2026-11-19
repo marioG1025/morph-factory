@@ -52,7 +52,7 @@ async function updateEvidence() {
 
 function showStatus() {
   const release = liveRelease();
-  const online = Boolean(link?.online);
+  const online = Boolean(link?.online && !credentialsExpired);
   const hasDraft = Boolean(desk.snapshot().state?.draft);
   $("release-actions").hidden = !release;
   if (!release) return;
@@ -157,6 +157,12 @@ function render(slots) {
     const previous = lastVersion;
     lastVersion = host.version;
     offered = null;
+    if (previous && liveRelease() === "review") {
+      // Restoring the baseline withdraws the previous guest's pending operation.
+      // The compatible state schema deliberately keeps the selected review pane.
+      host.kv.set("review/request", "");
+      host.kv.set("review/error", "");
+    }
     for (const raw of [...(link?.received || [])].reverse()) {
       const frame = JSON.parse(raw);
       if (frame.t === "manifest" && frame.manifest.version === host.version) { currentEnvelope = frame; break; }
@@ -177,7 +183,12 @@ async function connect() {
     if (!host) {
       host = new LiveHost({app: next.app, trustedKeys: [next.publicKey], onRender: render,
         onLog: event => {
-          if (event.msg.includes("server: unauthorized:")) credentialsExpired = true;
+          if (event.msg.includes("server: unauthorized:")) {
+            if (!credentialsExpired) record("Session credentials expired. Reconnecting.");
+            credentialsExpired = true;
+            showStatus(); connect();
+            return;
+          }
           if (event.kind === "reject" || event.kind === "error" || event.kind === "rollback") {
             record(event.msg); announce(event.msg, true);
           }
@@ -192,6 +203,19 @@ async function connect() {
       credentialsExpired = false;
       link = connectServer(host, next.endpoint, {app: next.app, token: next.token, watch: [],
         retryMs: 800, queueMs: 12000});
+      const sendRemote = host.capabilities.remote;
+      host.capabilities.remote = async command => {
+        const version = host.version, draftRevision = digestRequest;
+        const stillCurrent = () => host.version === version && digestRequest === draftRevision;
+        try {
+          const reply = await sendRemote(command);
+          // LLP delivers capability results to the currently running guest. An
+          // earlier release or replaced draft cannot finish its successor's call.
+          if (stillCurrent()) return reply;
+        } catch (err) {
+          if (stillCurrent()) throw err;
+        }
+      };
     }
     session = next;
   } catch (err) {
@@ -216,7 +240,8 @@ async function rehearse() {
   const fullDigest = await sha256(new TextEncoder().encode(canonical(candidate.manifest)));
   if (candidate.digest !== fullDigest) throw Error("The candidate manifest digest does not match its contents.");
   const {sig: receiptSignature, ...receipt} = candidate.serverRehearsal || {};
-  if (!receiptSignature || receipt.manifestDigest !== fullDigest || !receipt.ok ||
+  if (!receiptSignature || receipt.manifestDigest !== fullDigest || receipt.baseVersion !== initialVersion ||
+      receipt.version !== candidate.manifest.version || receipt.release !== "compare" || !receipt.ok ||
       !await verifyManifest(receipt, receiptSignature, session.publicKey)) {
     throw Error("The server rehearsal did not supply a passing signed receipt for this release.");
   }
