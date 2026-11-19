@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Factory floor · Morph Factory</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+  <script defer src="/agent.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="shell nav-content">
+      <a href="/" class="brand" aria-label="Morph Factory home"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i></span>Morph <strong>Factory</strong></a>
+      <nav aria-label="Primary"><a href="/" aria-current="page">Factory floor</a><a href="/lab/index.html">Live lab <span aria-hidden="true">↗</span></a></nav>
+      <span class="connection" id="connection">Connecting</span>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <div><p class="eyebrow"><span class="line"></span>Repository workspace</p>
+        <h1>Factory floor<span class="title-dot">.</span></h1>
+        <p class="subhead">Turn a finding in your code into a tested change you can review.</p>
+      </div>
+      <div class="intro-actions"><button id="walkthrough" class="button primary" disabled><span class="play" aria-hidden="true"></span>Run walkthrough</button><button id="scan" class="button quiet" disabled>Scan only</button></div>
+    </section>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section class="rail" aria-label="Change progress">
+      <div data-stage="scan"><span class="stage-mark">1</span><span>Scan<span class="step-detail">Find evidence</span></span></div>
+      <div data-stage="draft"><span class="stage-mark">2</span><span>Draft<span class="step-detail">Inspect the diff</span></span></div>
+      <div data-stage="verify"><span class="stage-mark">3</span><span>Verify<span class="step-detail">Run checks</span></span></div>
+      <div data-stage="review"><span class="stage-mark">4</span><span>Review<span class="step-detail">Save a branch</span></span></div>
+    </section>
+    <div class="workbench">
+      <aside>
+        <section class="panel repo-card">
+          <header class="panel-head"><div class="panel-title"><span class="square-icon repo-icon" aria-hidden="true"></span><h2>Repository</h2></div></header>
+          <div class="repo-body"><strong id="repo-name">Connecting…</strong><p id="repo-path" class="path"></p></div>
+          <dl class="repo-facts"><div><dt>Branch</dt><dd id="branch">—</dd></div><div><dt>Commit</dt><dd id="commit">—</dd></div><div><dt>Working tree</dt><dd id="tree">—</dd></div></dl>
+          <label class="watch"><input type="checkbox" id="watch" disabled>Watch for new commits</label>
+          <a class="case-link" id="case-link" href="/lab/vibecheck.html" hidden>VibeCheck case file <span aria-hidden="true">↗</span></a>
+        </section>
+        <section class="panel findings-card" id="findings-panel">
+          <header class="panel-head"><div class="panel-title"><span class="square-icon findings-icon" aria-hidden="true"></span><h2>Findings</h2></div><span id="finding-count" class="count">—</span></header>
+          <div id="findings"></div>
+        </section>
+        <a class="lab-link" href="/lab/index.html"><span class="lab-symbol" aria-hidden="true">⌁</span><span><strong>Live layer lab</strong><small>Explore a stateful live update</small></span><span class="lab-arrow" aria-hidden="true">↗</span></a>
+      </aside>
+      <section class="panel change-card" id="change-panel">
+        <header class="panel-head"><div class="panel-title"><span class="square-icon change-icon" aria-hidden="true"></span><h2>Change review</h2></div><span class="pill" id="draft-status">Waiting</span></header>
+        <div id="empty-draft" class="empty-draft">
+          <div class="patch-illustration" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <h3>No patch in review</h3><p id="draft-hint">Run the walkthrough to scan this repository and test an available patch. You decide whether to save the review branch.</p>
+          <div class="actions"><button id="auto-draft" class="button primary" hidden>Draft suggested patch</button><button id="agent-open" class="button secondary">Propose an idea</button><button id="manual" class="button secondary" disabled>Add your patch</button></div>
+        </div>
+        <div id="active-draft" hidden>
+          <div class="draft-summary"><h3 id="draft-title"></h3><p class="mono" id="diff-summary"></p></div>
+          <div class="view-switch" aria-label="Patch evidence"><button id="show-diff" aria-pressed="true">Diff</button><button id="show-checks" aria-pressed="false">Check output</button></div>
+          <div id="diff-view"><pre id="diff-output" tabindex="0" aria-label="Unified diff"></pre></div>
+          <div id="checks-view" hidden><pre id="checks-output" tabindex="0" aria-label="Verification results"></pre></div>
+          <div class="review-result" id="review-result" hidden><p class="eyebrow">Local review branch</p><strong id="review-branch"></strong><p class="mono" id="review-commit"></p><details class="publish-hint"><summary>Publish a GitHub draft PR</summary><p>From the Morph Factory directory, preview the destination with this command. Add <code>--publish</code> to push the branch and open the draft PR.</p><code id="publish-command"></code></details></div>
+          <div class="draft-controls"><div class="actions"><button class="button primary" id="verify">Run checks</button><button class="button primary" id="review" hidden>Save review branch</button><button class="button secondary" id="discard">Discard draft</button></div><p class="footnote" id="action-hint"></p></div>
+        </div>
+      </section>
+    </div>
+    <details class="panel history-card"><summary>Experiment history <span id="history-count"></span></summary><div id="history-records"></div></details>
+  </main>
+  <dialog id="manual-dialog" aria-labelledby="dialog-heading">
+    <form id="patch-form"><div class="dialog-head"><div><p class="eyebrow">Custom proposal</p><h2 id="dialog-heading">Add your patch</h2></div><button type="button" class="close-button" id="close-dialog" aria-label="Close">×</button></div>
+      <label for="patch-title">Change title</label><input id="patch-title" required maxlength="200" placeholder="Describe the change">
+      <label for="patch-diff">Unified diff</label><textarea id="patch-diff" required spellcheck="false" rows="10" placeholder="Paste the output of git diff"></textarea>
+      <p class="footnote" id="manual-base"></p><p class="form-error" id="form-error" role="alert" hidden></p>
+      <button class="button primary" id="save-draft" type="submit">Create draft</button>
+    </form>
+  </dialog>
+  <dialog id="agent-dialog" aria-labelledby="agent-heading">
+    <form id="agent-form">
+      <div class="dialog-head"><div><p class="eyebrow">Codex</p><h2 id="agent-heading">Propose an idea</h2></div><button class="close-button" type="button" id="agent-close" aria-label="Close">×</button></div>
+      <label for="agent-idea">What should improve?</label>
+      <textarea id="agent-idea" required maxlength="2000" rows="3" placeholder="When a search finds no shows, give the listener a way to clear it."></textarea>
+      <label for="agent-file">Tracked file for context (optional)</label>
+      <input id="agent-file" maxlength="500" spellcheck="false" placeholder="src/pages/EventsPage.tsx">
+      <p class="footnote">Your signed-in Codex CLI sends the idea and selected file to the model. It can read committed source in a temporary checkout to prepare a draft.</p>
+      <p role="status" aria-live="polite" id="agent-status" class="footnote"></p>
+      <button type="submit" class="button primary" id="agent-submit">Generate patch</button>
+    </form>
+  </dialog>
+</body>
+</html>

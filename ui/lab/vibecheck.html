@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibeCheck case file · Morph Factory</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="case.css">
+  <script src="case.js" defer></script>
+</head>
+<body>
+  <header class="masthead"><div class="shell nav-content">
+    <a href="/" class="brand"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i></span>Morph <strong>Factory</strong></a>
+    <nav aria-label="Primary"><a href="/">Factory floor</a><a href="index.html">Live lab ↗</a></nav>
+  </div></header>
+  <main class="shell case-main">
+    <section class="intro"><div><p class="eyebrow"><span class="line"></span>Case file / VibeCheck</p>
+      <h1>Two repairs<span class="title-dot">.</span></h1>
+      <p class="subhead">A Dallas show appears a day early. A separate TypeScript error blocks the production build.</p>
+    </div></section>
+    <div class="case-context"><a href="https://github.com/marioG1025/VibeCheck/tree/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24" target="_blank" rel="noreferrer">marioG1025 / VibeCheck ↗</a><code>6a2349d6ac</code></div>
+    <p role="status" id="case-status" class="case-status" aria-live="polite">Connecting to the local factory…</p>
+    <section class="panel case-card">
+      <header class="panel-head"><div><p class="eyebrow">Calendar formatting</p><h2>Keep the show on its advertised day</h2></div></header>
+      <div class="case-body">
+        <p>The event list and detail page both parse a date-only string as midnight UTC and then format it in the viewer’s time zone. In Dallas, that moves a Saturday show to Friday. The patch treats a date-only value as a calendar day and keeps local-time formatting for a timestamp.</p>
+        <div class="results"><div><span class="eyebrow">Original revision</span><strong class="fail">4 of 6 failed</strong></div><div><span class="eyebrow">Patched revision</span><strong class="pass">6 of 6 passed</strong></div></div>
+        <div class="captures">
+          <figure><a href="baseline-detail.png" target="_blank" rel="noreferrer"><img src="baseline-detail.png" alt="VibeCheck renders the Dallas Saturday fixture on Friday, May 15, 2026."></a><figcaption>Original detail page · Friday, May 15</figcaption></figure>
+          <figure><a href="corrected-detail.png" target="_blank" rel="noreferrer"><img src="corrected-detail.png" alt="The repaired VibeCheck detail page renders Saturday, May 16, 2026."></a><figcaption>Patched detail page · Saturday, May 16</figcaption></figure>
+        </div>
+        <p class="footnote capture-note">Edge screenshots of the React event detail page with the same fixture event in the Dallas time zone. Select either image to enlarge.</p>
+        <div class="table-wrap"><table><caption>Formatter output in America/Chicago</caption>
+          <thead><tr><th scope="col">Input / view</th><th scope="col">Original</th><th scope="col">Patched</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">May 16 · event list</th><td>Fri, May 15, 2026</td><td>Sat, May 16, 2026</td></tr>
+            <tr><th scope="row">May 16 · event detail</th><td>Friday, May 15, 2026</td><td>Saturday, May 16, 2026</td></tr>
+            <tr><th scope="row">03:00 UTC May 16 · both views</th><td>Friday, May 15</td><td>Friday, May 15</td></tr>
+          </tbody>
+        </table></div>
+        <p class="footnote">The six checks cover a May show date, January 1 and a timed UTC event on each view. The probe executes the formatter functions from the two checked-out source files.</p>
+        <div class="source-links"><a href="https://github.com/marioG1025/VibeCheck/blob/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx#L45" target="_blank" rel="noreferrer">Event list source ↗</a><a href="https://github.com/marioG1025/VibeCheck/blob/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx#L51" target="_blank" rel="noreferrer">Detail source ↗</a><a href="calendar-day.patch" download>Download diff ↓</a></div>
+        <div class="actions"><button type="button" class="button primary load" id="load-date" data-case="date" disabled>Load calendar repair</button></div>
+      </div>
+    </section>
+    <section class="panel case-card">
+      <header class="panel-head"><div><p class="eyebrow">Frontend build</p><h2>Restore the Vite environment types</h2></div></header>
+      <div class="case-body">
+        <p>The API client reads <code>import.meta.env.VITE_API_URL</code>. The original project lacks the Vite client type declaration. TypeScript stops at the API client before Vite can bundle the app.</p>
+        <div class="results"><div><span class="eyebrow">Original build</span><strong class="fail">TS2339</strong></div><div><span class="eyebrow">Patched build</span><strong class="pass">Passed</strong></div></div>
+        <p>A new <code>src/vite-env.d.ts</code> references <code>vite/client</code>. With this repair alone, <code>npm run build</code> passed TypeScript checking and Vite transformed 112 modules. Local verification installs frontend dependencies in a disposable checkout before running the same build.</p>
+        <div class="source-links"><a href="https://github.com/marioG1025/VibeCheck/blob/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24/Music_Show_Helper/Frontend/src/api/client.ts#L3" target="_blank" rel="noreferrer">API client source ↗</a><a href="https://github.com/marioG1025/VibeCheck/blob/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24/Music_Show_Helper/Frontend/package.json" target="_blank" rel="noreferrer">Build script ↗</a><a href="vite-types.patch" download>Download diff ↓</a></div>
+        <div class="actions"><button type="button" class="button primary load" id="load-build" data-case="build" disabled>Load build repair</button></div>
+      </div>
+    </section>
+    <section class="case-scope"><h2>What these checks cover</h2><p>The results cover the Dallas date formatters, an event rendered with fixture data in Edge, and the frontend build at the pinned commit. The live backend and Spotify integration require a separate run. To reproduce the formatter or build result, load its patch and run the project checks on the factory floor.</p><a href="/">Return to factory floor →</a></section>
+    <dialog id="replace-dialog" aria-labelledby="replace-heading">
+      <h2 id="replace-heading">Replace the current draft?</h2><p id="replace-copy"></p>
+      <div class="actions"><button id="replace" class="button primary" type="button">Replace draft</button><button id="cancel" class="button secondary" type="button" autofocus>Keep current draft</button></div>
+    </dialog>
+  </main>
+</body>
+</html>

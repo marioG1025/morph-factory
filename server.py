@@ -1,0 +1,320 @@
+"""Serve Morph Factory's review desk for one local Git checkout."""
+
+import argparse
+import hashlib
+import json
+import logging
+import mimetypes
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import datetime, timezone
+from urllib.parse import unquote, urlsplit
+
+from factory import create_review_branch, inspect_repo, verify_proposal
+from propose import propose
+
+
+UI = Path(__file__).resolve().parent / "ui"
+MAX_BODY = 1024 * 1024
+LOGGER = logging.getLogger("morph")
+
+
+def git_value(repo, *args):
+    result = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", *args],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        timeout=10, check=False,
+    )
+    if result.returncode:
+        raise ValueError("Choose a Git working tree with at least one commit.")
+    return result.stdout.strip()
+
+
+def default_state_dir():
+    if "LOCALAPPDATA" in os.environ:
+        return Path(os.environ["LOCALAPPDATA"]) / "MorphFactory"
+    return Path(os.getenv("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "morph-factory"
+
+
+class Desk:
+    def __init__(self, repo, state_dir, command):
+        self.repo = str(Path(git_value(repo, "--show-toplevel")).resolve())
+        git_value(self.repo, "--verify", "HEAD")
+        self.command = command
+        self.lock = threading.RLock()
+        self.agent = {"status": "idle", "message": ""}
+        repo_hash = hashlib.sha256(os.path.normcase(self.repo).encode()).hexdigest()
+        self.file = state_dir / f"{repo_hash}.json"
+        self.scan = None
+        self.draft = None
+        self.history = []
+        if self.file.exists():
+            saved = json.loads(self.file.read_text(encoding="utf-8"))
+            if saved.get("version") != 1 or saved.get("repo") != self.repo:
+                raise ValueError(f"Unexpected saved draft format in {self.file}")
+            self.draft = saved.get("draft")
+            self.history = saved.get("history", [])
+            # Receipts are signed in memory by this instance of the verifier.
+            if self.draft and not self.draft.get("review"):
+                self.draft["verification"] = None
+
+    def start_agent(self, port, payload):
+        with self.lock:
+            if self.agent["status"] == "running":
+                raise ValueError("A proposal is already running.")
+            if self.draft:
+                raise ValueError("Clear the current proposal before asking for another.")
+            idea = payload.get("idea")
+            path = payload.get("file", "")
+            if not isinstance(idea, str) or not 1 <= len(idea.strip()) <= 2000:
+                raise ValueError("Supply an idea of 1–2,000 characters.")
+            if not isinstance(path, str) or len(path) > 500:
+                raise ValueError("Supply one repository-relative file path.")
+            path = path.strip()
+            if path and (Path(path).is_absolute() or ".." in Path(path).parts or "\x00" in path):
+                raise ValueError("Select a tracked file within this repository.")
+            cli = shutil.which("codex")
+            if not cli:
+                raise ValueError("Install and sign in to the Codex CLI, then restart this desk.")
+            self.agent = {"status": "running", "message": "Codex is preparing a patch in a clean checkout."}
+            def work():
+                try:
+                    propose(port, idea, [cli], [path] if path else [])
+                    state = {"status": "ready", "message": "Your draft is ready. Review the diff and run checks."}
+                except (ValueError, OSError, subprocess.SubprocessError) as exc:
+                    state = {"status": "failed", "message": str(exc)}
+                except Exception:
+                    LOGGER.exception("Proposal job failed")
+                    state = {"status": "failed", "message": "The proposal stopped. See the desk log."}
+                with self.lock:
+                    self.agent = state
+            threading.Thread(target=work, daemon=True, name="morph-proposal").start()
+            return self.agent.copy()
+
+    def agent_status(self):
+        with self.lock:
+            return {**self.agent, "available": bool(shutil.which("codex"))}
+
+    def state(self):
+        with self.lock:
+            return {"repo": self.repo, "scan": self.scan, "draft": self.draft, "check": self.command,
+                    "history": self.history}
+
+    def head(self):
+        with self.lock:
+            head = git_value(self.repo, "--verify", "HEAD")
+            return {"head": head, "changed": bool(self.scan and self.scan["head"] != head)}
+
+    def persist(self, draft, outcome=None):
+        self.file.parent.mkdir(parents=True, exist_ok=True)
+        history = self.history
+        previous = draft or self.draft
+        if outcome and previous:
+            event = {"at": datetime.now(timezone.utc).isoformat(), "title": previous["title"],
+                     "base": previous["base"], "outcome": outcome}
+            if previous.get("review"):
+                event["branch"] = previous["review"]["branch"]
+            history = [event, *history][:40]
+        saved = {"version": 1, "repo": self.repo, "draft": draft, "check": self.command,
+                 "history": history}
+        tmp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                dir=self.file.parent, mode="w", encoding="utf-8", delete=False,
+            ) as tmp:
+                tmp_name = tmp.name
+                json.dump(saved, tmp, ensure_ascii=False)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            os.replace(tmp_name, self.file)
+        finally:
+            if tmp_name:
+                Path(tmp_name).unlink(missing_ok=True)
+        self.draft = draft
+        self.history = history
+
+    def make_draft(self, payload):
+        if payload.get("ifEmpty") and self.draft:
+            raise ValueError("A draft already exists. Discard it before creating a new one.")
+        if "expectedDraft" in payload:
+            current_draft = self.draft
+            identity = None if current_draft is None else {
+                "base": current_draft["base"], "title": current_draft["title"],
+                "digest": hashlib.sha256(current_draft["diff"].encode("utf-8")).hexdigest(),
+                "reviewCommit": (current_draft.get("review") or {}).get("commit"),
+                "verified": (current_draft.get("verification") or {}).get("ok"),
+            }
+            if payload["expectedDraft"] != identity:
+                raise ValueError("The current draft changed. Review it before replacing it.")
+        if not self.scan:
+            raise ValueError("Scan this repository before creating a proposal.")
+        current = self.scan["head"]
+        if self.head()["changed"] or payload.get("base", current) != current:
+            raise ValueError("HEAD changed. Scan again and review the new base commit.")
+        title = payload.get("title", "")
+        diff = payload.get("diff", "")
+        if not isinstance(title, str) or not isinstance(diff, str):
+            raise ValueError("Title and patch must be text.")
+        title = title.strip()
+        if not title and not diff.strip():
+            proposal = self.scan.get("proposal")
+            if not proposal:
+                raise ValueError("This scan has no automatic proposal. Supply a title and a unified diff.")
+            title, diff = proposal["title"], proposal["diff"]
+        if not title or len(title) > 200 or not diff.strip() or "\x00" in diff:
+            raise ValueError("Supply a title of 1–200 characters and a nonempty text patch.")
+        self.persist({"title": title, "base": current, "diff": diff, "verification": None, "review": None})
+
+    def act(self, action, payload):
+        with self.lock:
+            if action == "scan":
+                self.scan = inspect_repo(self.repo)
+            elif action == "draft":
+                self.make_draft(payload)
+            elif action == "discard":
+                self.persist(None, "Cleared from desk")
+            elif not self.draft:
+                raise ValueError("Create a proposal first.")
+            elif self.draft.get("review"):
+                if action == "review" and payload.get("digest") == self.draft["review"]["digest"]:
+                    return self.state()
+                raise ValueError("This proposal already has a review branch.")
+            elif self.head()["head"] != self.draft["base"]:
+                raise ValueError("The draft targets an older commit. Scan again and prepare a new draft.")
+            elif action == "verify":
+                # Invalidate old evidence even when a new run aborts partway through.
+                self.persist({**self.draft, "verification": None})
+                receipt = verify_proposal(self.repo, self.draft["base"], self.draft["diff"], self.command)
+                self.persist({**self.draft, "verification": receipt},
+                             "Checks passed" if receipt["ok"] else "Checks failed")
+            elif action == "review":
+                receipt = self.draft.get("verification")
+                if not receipt or not receipt.get("ok"):
+                    raise ValueError("A passing verification is required for this patch.")
+                if not payload.get("digest") or payload["digest"] != receipt["digest"]:
+                    raise ValueError("The verified patch changed. Refresh and review it again.")
+                review = create_review_branch(
+                    self.repo, self.draft["base"], self.draft["diff"], self.draft["title"], receipt,
+                )
+                self.draft = {**self.draft, "review": review}
+                self.persist(self.draft, "Review branch created")
+            return self.state()
+
+
+class RequestHandler(BaseHTTPRequestHandler):
+    server_version = "MorphFactory/1"
+
+    def respond(self, status, data, content_type):
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def send_json(self, value, status=200):
+        self.respond(status, json.dumps(value, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    def valid_host(self):
+        port = self.server.server_port
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        if port == 80:
+            hosts.update(("localhost", "127.0.0.1"))
+        if self.headers.get("Host") not in hosts:
+            self.send_json({"error": "Use the local address printed by the server."}, 403)
+            return False
+        return True
+
+    def do_GET(self):
+        if not self.valid_host():
+            return
+        path = unquote(urlsplit(self.path).path)
+        if path == "/api/agent/status":
+            self.send_json(self.server.desk.agent_status())
+            return
+        if path == "/api/state":
+            self.send_json(self.server.desk.state())
+            return
+        if path == "/api/head":
+            try:
+                self.send_json(self.server.desk.head())
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
+        if path.startswith("/api/") or "\x00" in path or "\\" in path or ":" in path:
+            self.send_json({"error": "Unknown resource."}, 404)
+            return
+        asset = (UI / (path.lstrip("/") or "index.html")).resolve()
+        if not asset.is_relative_to(UI) or not asset.is_file():
+            self.send_json({"error": "Unknown resource."}, 404)
+            return
+        self.respond(200, asset.read_bytes(), mimetypes.guess_type(asset)[0] or "application/octet-stream")
+
+    def do_POST(self):
+        if not self.valid_host():
+            return
+        if self.headers.get("Origin") != f"http://{self.headers['Host']}":
+            self.send_json({"error": "Open the local desk to perform this action."}, 403)
+            return
+        route = urlsplit(self.path).path
+        if route not in {"/api/scan", "/api/draft", "/api/verify", "/api/review", "/api/discard", "/api/agent"}:
+            self.send_json({"error": "Unknown action."}, 404)
+            return
+        if self.headers.get_content_type() != "application/json":
+            self.send_json({"error": "Send a JSON object."}, 415)
+            return
+        try:
+            size = int(self.headers.get("Content-Length", "-1"))
+            if size < 0 or size > MAX_BODY or "Transfer-Encoding" in self.headers:
+                self.send_json({"error": "Supply a JSON body of at most 1 MiB."}, 413)
+                return
+            payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("Expected a JSON object.")
+            if route == "/api/agent":
+                self.send_json(self.server.desk.start_agent(self.server.server_port, payload), 202)
+                return
+            self.send_json(self.server.desk.act(route[5:], payload))
+        except (ValueError, OSError, subprocess.SubprocessError) as exc:
+            self.send_json({"error": str(exc)}, 400)
+        except Exception:
+            LOGGER.exception("Could not complete %s", route)
+            self.send_json({"error": "The action failed. Check the server log for details."}, 500)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, required=True, help="Git working tree to inspect")
+    parser.add_argument("--port", type=int, default=8765, help="Local server port (default 8765)")
+    parser.add_argument("--state-dir", type=Path, default=default_state_dir(), help="Directory for saved drafts")
+    parser.add_argument("--check", nargs=argparse.REMAINDER, metavar="ARG", help="Final option: verification command and its arguments")
+    args = parser.parse_args()
+    if args.check == []:
+        parser.error("--check requires a program, optionally followed by arguments.")
+    if not 0 <= args.port <= 65535:
+        parser.error("Port must be between 0 and 65535.")
+    try:
+        desk = Desk(args.repo, args.state_dir, args.check)
+        server = ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler)
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        parser.exit(1, f"Could not start Morph Factory: {exc}\n")
+    server.desk = desk
+    print(f"Morph Factory at http://127.0.0.1:{server.server_port}/ reviewing {desk.repo}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

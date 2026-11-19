@@ -1,0 +1,26 @@
+diff --git a/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx b/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
+index 88d0bad..1077008 100644
+--- a/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
++++ b/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
+@@ -52,6 +52,8 @@ function EventDetailPage() {
+     try {
+       const date = new Date(dateString);
+       return date.toLocaleDateString('en-US', {
++        // Date-only values name a show day. Timestamps still use the viewer's time zone.
++        ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: 'UTC' } : {}),
+         weekday: 'long',
+         year: 'numeric',
+         month: 'long',
+diff --git a/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx b/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
+index 8e7908d..882563b 100644
+--- a/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
++++ b/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
+@@ -46,6 +46,8 @@ function EventsPage() {
+     try {
+       const date = new Date(dateString);
+       return date.toLocaleDateString('en-US', {
++        // Date-only values name a show day. Timestamps still use the viewer's time zone.
++        ...(/^\d{4}-\d{2}-\d{2}$/.test(dateString) ? { timeZone: 'UTC' } : {}),
+         weekday: 'short',
+         year: 'numeric',
+         month: 'short',

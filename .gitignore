@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.morph/
+.morph-state/
+test-results/
+playwright-report/
+coverage/
+*.key
+*.pem
+.DS_Store

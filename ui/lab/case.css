@@ -1,0 +1,38 @@
+.case-main {max-width: 940px}
+.case-main .intro {padding-bottom: 18px}
+.case-context, .source-links {display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; font-size: 13px}
+.case-context code {color: var(--muted); font-family: var(--mono)}
+.case-main a:not(.button) {color: var(--lime)}
+.case-main a:hover {text-decoration: underline}
+.case-status {margin: 18px 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere}
+.case-status.error {color: var(--negative)}
+.case-card {margin: 14px 0}
+.case-card .panel-head {padding: 19px 23px}
+.case-card h2 {font-size: clamp(19px,3vw,25px); margin-top: 3px}
+.case-body {padding: 18px 23px 23px}
+.case-body p, .case-scope p {font-size: 14px; line-height: 1.6; color: var(--muted)}
+.case-body .footnote {font-size: 12px}
+.case-body code {font: 12px/1.6 var(--mono); color: var(--ink); overflow-wrap:anywhere}
+.results {display: flex; gap: 15px 45px; align-items: center; flex-wrap:wrap; margin: 18px 0; padding: 12px 15px; background: var(--inset); border-left: 2px solid var(--edge)}
+.results strong {display:block; font-size: 20px; font-weight: 580; letter-spacing: -.04em}
+.results .fail {color: var(--negative)}
+.results .pass {color: var(--lime)}
+.captures {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px}
+.captures figure {margin:0}
+.captures a {display:block; border-radius:5px; overflow:hidden}
+.captures img {display:block;width:100%;height:auto}
+.captures figcaption {font-size:12px;color:var(--ink);margin-top:5px}
+.case-body .capture-note {margin:7px 0 18px}
+@media(max-width:650px) {.captures{grid-template-columns:1fr;gap:12px}}
+.table-wrap {overflow-x: auto}
+.table-wrap table {border-collapse: collapse; width: 100%; text-align: left; font-size: 13px}
+.table-wrap caption {text-align:left; font-size: 12px; color: var(--muted); margin-bottom: 6px}
+.table-wrap th, .table-wrap td {padding: 8px 8px 8px 0; border-bottom: 1px solid var(--edge); vertical-align: top}
+.table-wrap th {font-weight: 550}
+.table-wrap thead th {color: var(--muted); font: 11px var(--mono)}
+.source-links {margin: 15px 0}
+.case-scope {margin: 22px 0 42px}
+.case-scope h2, .case-scope p {margin-bottom: 7px}
+.case-scope a {font-size: 13px}
+#replace-copy {margin: 10px 0; color: var(--muted); overflow-wrap: anywhere}
+@media(max-width:600px) {.case-body,.case-card .panel-head {padding: 15px}.table-wrap table{font-size:12px}.table-wrap th,.table-wrap td{padding-right:5px}}
