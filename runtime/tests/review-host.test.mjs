@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -166,4 +166,49 @@ test("disposing a disconnected client cancels a pending reconnect", async t => {
   await delay(150);
   assert.equal(server.status().connected, 0);
   assert.equal(client.link.online, false);
+});
+
+test("a restored checkout needs its original publisher identity", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "morph-publisher-"));
+  let server = await startHost(directory);
+  t.after(async () => { server.close(); await rm(directory, {recursive: true, force: true}); });
+  const original = server.session();
+  server.close();
+  const key = join(directory, "publisher.json");
+  await rename(key, key + ".saved");
+  await assert.rejects(startHost(directory), /missing its publisher.json/);
+  await assert.rejects(access(key), {code: "ENOENT"}, "startup must preserve the checkout's trust origin");
+  await rename(key + ".saved", key);
+  server = await startHost(directory);
+  assert.deepEqual(server.session().publicKey, original.publicKey);
+  assert.equal(server.session().version, original.version);
+});
+
+test("a fresh client can fetch the signed module after a recoverable local blob loss", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "morph-restore-client-"));
+  const clients = [];
+  let server = await startHost(directory);
+  t.after(async () => {
+    for (const client of clients) client.close();
+    server.close();
+    await rm(directory, {recursive: true, force: true});
+  });
+  const candidate = await server.command({op: "candidate"});
+  const original = await server.command({op: "approve", expectedVersion: server.status().version, expectedDigest: candidate.digest});
+  const file = join(directory, "host", "blobs", original.reviewHash);
+  for (const damage of ["missing", "incomplete"]) {
+    server.close();
+    if (damage === "missing") await rm(file);
+    else await writeFile(file, (await readFile(file)).subarray(0, 30));
+    server = await startHost(directory);
+    assert.equal(await sha256(await readFile(file)), original.reviewHash);
+    const client = openClient(server.session());
+    clients.push(client);
+    await until(() => server.status().acknowledged === 1, `${damage} client blob restored for a new client`);
+    assert.equal(client.host.running().review, original.reviewHash);
+    assert.equal(client.host.version, original.version);
+    assert.equal(await client.host.capabilities.remote("reviewService:compare"), "allowed");
+    client.close();
+    clients.pop();
+  }
 });

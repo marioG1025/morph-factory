@@ -12,17 +12,24 @@ import { rehearseServer } from "./rehearsal.mjs";
 export const APP = "morph.factory.review";
 const signingAlgorithm = {name: "ECDSA", namedCurve: "P-256"};
 
+function replaceFile(path, data) {
+  const pending = path + "." + process.pid + ".tmp";
+  writeFileSync(pending, data, {mode: 0o600, flush: true});
+  renameSync(pending, path);
+}
+
 async function publisher(stateDir) {
   const path = join(stateDir, "publisher.json");
   if (existsSync(path)) {
     const {privateJwk, publicKey} = JSON.parse(readFileSync(path, "utf8"));
     return {publicKey, privateKey: await crypto.subtle.importKey("jwk", privateJwk, signingAlgorithm, false, ["sign"])};
   }
+  if (existsSync(join(stateDir, "host"))) {
+    throw Error("The saved host is missing its publisher.json. Restore that checkout's original key or choose a new state directory.");
+  }
   const {privateKey, publicJwk} = await generatePublisherKey();
   const privateJwk = await crypto.subtle.exportKey("jwk", privateKey);
-  const pending = join(stateDir, "publisher." + process.pid + ".tmp");
-  writeFileSync(pending, JSON.stringify({privateJwk, publicKey: publicJwk}), {mode: 0o600, flush:true});
-  renameSync(pending, path);
+  replaceFile(path, JSON.stringify({privateJwk, publicKey: publicJwk}));
   return {privateKey, publicKey: publicJwk};
 }
 
@@ -43,6 +50,21 @@ async function assets() {
   return {bytes, variants};
 }
 
+async function restoreClientAsset(runtime, packagedAssets) {
+  const tenant = runtime.tenant(APP);
+  const active = tenant.releases.get(null);
+  if (!active) return;
+  // ServerHost restores its placed server worker and caches client bytes if they exist.
+  // A signed release must also be deliverable to a new browser before the desk opens.
+  const hash = active.manifest.layers.review;
+  const saved = tenant.blobs.get(hash);
+  if (saved && await sha256(saved) === hash) return;
+  const packaged = packagedAssets.get(hash);
+  if (!packaged) throw Error("The saved release needs a client module unavailable in this checkout. Restore its original content-addressed blob.");
+  replaceFile(join(runtime.disk.dir, "blobs", hash), packaged);
+  tenant.blobs.set(hash, packaged);
+}
+
 export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
   if (!Number.isSafeInteger(tokenTtlMs) || tokenTtlMs < 1000 || tokenTtlMs > 86400000) {
     throw Error("MORPH_SESSION_TTL_MS must be between 1000 and 86400000 milliseconds.");
@@ -56,10 +78,13 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
       if (event.kind === "error" || event.kind === "client-nack") console.error(event.kind, event.msg);
     }});
   // The release is persisted by ServerHost itself, with the signature checked during restore.
-  const restored = await runtime.ready;
-  if (restored.some(row => !row.ok)) {
+  try {
+    const restored = await runtime.ready;
+    if (restored.some(row => !row.ok)) throw Error("The saved release failed LLP verification. Inspect the local factory state.");
+    await restoreClientAsset(runtime, bytes);
+  } catch (error) {
     runtime.close();
-    throw Error("The saved release failed LLP verification. Inspect the local factory state.");
+    throw error;
   }
   const tenant = runtime.tenant(APP);
   const lane = runtime.lane(tenant);
@@ -96,8 +121,7 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
       throw Error("The isolated server rehearsal did not authorize this release.");
     // Save the evidence first. A crash before commit can only leave an unreferenced receipt.
     const proofPath = join(receiptsDir, envelope.digest + ".json");
-    writeFileSync(proofPath + ".tmp", JSON.stringify(proof), {mode:0o600, flush:true});
-    renameSync(proofPath + ".tmp", proofPath);
+    replaceFile(proofPath, JSON.stringify(proof));
     let accepted;
     try {
       accepted = await runtime.offer(envelope.manifest, envelope.sig, blob);
@@ -193,5 +217,9 @@ async function main() {
   } finally { host.close(); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(error => { console.error("Morph live host:", error.message); process.exitCode = 1; });
+  main().catch(error => {
+    console.error("Morph live host:", error.message);
+    process.stdout.write(JSON.stringify({ok: false, error: error.message}) + "\n");
+    process.exitCode = 1;
+  });
 }
