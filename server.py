@@ -14,6 +14,7 @@ import tempfile
 import threading
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import TCPServer
 from datetime import datetime, timezone
 from urllib.parse import unquote, urlsplit
 
@@ -34,6 +35,14 @@ UI_CONTENT_TYPES = {
 }
 MAX_BODY = 1024 * 1024
 LOGGER = logging.getLogger("morph")
+
+
+class DeskHTTPServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # The public URL and Host checks use the bound numeric loopback address.
+        # A reverse DNS lookup here blocked startup for 35 s on macOS runners.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 def git_value(repo, *args):
@@ -589,7 +598,7 @@ def main():
         parser.error("Port must be between 0 and 65535.")
     try:
         with open_desk(args.repo, args.state_dir, args.check) as desk:
-            with ThreadingHTTPServer(("127.0.0.1", args.port), RequestHandler) as server:
+            with DeskHTTPServer(("127.0.0.1", args.port), RequestHandler) as server:
                 server.desk = desk
                 print(f"Morph Factory at http://127.0.0.1:{server.server_port}/ reviewing {desk.repo}", flush=True)
                 server.serve_forever()
