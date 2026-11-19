@@ -10,7 +10,8 @@ jobs:
   acceptance:
     name: ${{ matrix.engine }} on Ubuntu 24.04
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # A hosted Ubuntu mirror took 14 minutes to fetch WebKit's system libraries.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +45,7 @@ jobs:
           npx playwright install --with-deps "$MORPH_BROWSER_ENGINE"
       - name: Approve, compare, restore and save in two open tabs
         id: acceptance
+        timeout-minutes: 3
         shell: bash
         working-directory: tests/browser
         run: |
