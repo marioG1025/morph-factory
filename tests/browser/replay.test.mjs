@@ -15,13 +15,24 @@ test("the standalone replay executes the signed review with networking disabled"
   execFileSync(python, ["scripts/replay/build.py", file], {cwd:root});
   const browser = await launchBrowser();
   t.after(() => browser.close());
-  const context = await browser.newContext({offline:true});
+  // Playwright WebKit reports a navigation error for a local file when its
+  // offline flag is already set. Block every network scheme during file
+  // navigation and enable offline emulation for the interactive session.
+  const localWebKit = browser.browserType().name() === "webkit";
+  const context = await browser.newContext({offline:!localWebKit});
   const page = await context.newPage();
   const errors = [], requests = [];
+  await context.route(/^https?:\/\//, route => route.abort());
+  await context.routeWebSocket(/^wss?:\/\//, socket => {requests.push(socket.url()); socket.close();});
+  async function openLocal(path) {
+    if (localWebKit) await context.setOffline(false);
+    await page.goto(pathToFileURL(path).href);
+    if (localWebKit) await context.setOffline(true);
+  }
   page.on("pageerror", err => errors.push(err.message));
   page.on("request", req => { if (/^(https?|wss?):/.test(req.url())) requests.push(req.url()); });
   page.on("websocket", socket => requests.push(socket.url()));
-  await page.goto(pathToFileURL(file).href);
+  await openLocal(file);
   await page.locator("#tab-checks").click();
   const timeOrigin = await page.evaluate(() => performance.timeOrigin);
   assert.match(await page.locator("#stage").textContent(), /Signed release 1/);
@@ -51,7 +62,7 @@ test("the standalone replay executes the signed review with networking disabled"
   assert.notEqual(altered, html);
   const modified = join(directory, "altered.html");
   await writeFile(modified, altered);
-  await page.goto(pathToFileURL(modified).href);
+  await openLocal(modified);
   await page.getByText("Signed release 1", {exact:false}).waitFor();
   await page.locator("#advance").click();
   await page.getByText("Replay stopped").waitFor();
