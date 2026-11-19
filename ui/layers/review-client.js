@@ -74,9 +74,8 @@ function snapshot() {
   const model = desk.snapshot();
   const draft = model.state?.draft;
   const savedReport = draft?.comparison;
-  const matches = candidate => candidate && candidate.digest === digest && candidate.base === draft?.base &&
-    candidate.releaseVersion === host?.version;
-  const current = matches(report) ? report : matches(savedReport) ? savedReport : null;
+  const current = report?.digest === digest && report?.base === draft?.base ? report :
+    savedReport?.digest === digest && savedReport?.base === draft?.base ? savedReport : null;
   return {...model, report: current};
 }
 
@@ -106,7 +105,7 @@ async function sync() {
   if (lastDiff !== draft?.diff || lastBase !== draft?.base || lastGeneration !== state?.draftGeneration) {
     lastDiff = draft?.diff; lastBase = draft?.base; lastGeneration = state?.draftGeneration;
     const seq = ++digestRequest;
-    digest = ""; report = null; offered = null;
+    digest = ""; report = null; offered = null; mirrorLookup = null;
     if (host) await host.exclusive(() => {
       host.kv.set("review/error", ""); host.kv.set("review/request", "");
     });
@@ -199,15 +198,13 @@ function render(slots) {
       // The compatible state schema deliberately keeps the selected review pane.
       host.kv.set("review/request", "");
       host.kv.set("review/error", "");
+      mirrorLookup = null;
     }
     for (const raw of [...(link?.received || [])].reverse()) {
       const frame = JSON.parse(raw);
       if (frame.t === "manifest" && frame.manifest.version === host.version) { currentEnvelope = frame; break; }
     }
     record("Release " + host.version + " accepted · review " + host.running().review.slice(0, 12));
-    if (host.kv.get("desk/hasComparison") !== Number(Boolean(model.report))) {
-      sync().catch(e => announce(e.message, true));
-    }
     if (previous) announce(liveRelease() === "compare" ? "Compare results is ready on the open draft." :
       "Original review restored. The draft is still open.");
   }

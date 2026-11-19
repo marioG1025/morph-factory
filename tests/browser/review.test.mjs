@@ -118,3 +118,70 @@ test("a superseded remote grant cannot consume a new comparison request", {timeo
   assert.equal(posted, 1);
   assert.equal(await observer.locator('.comparison-cases [data-kind="fixed"]').count(), 4);
 });
+
+test("duplicate mirror frames and a late document cannot replace a recreated VibeCheck draft", {timeout:110000}, async t => {
+  const desk = await startDesk();
+  t.after(() => desk.close());
+  const browser = await launchBrowser();
+  t.after(() => browser.close());
+  const actor = await browser.newPage();
+  const observer = await browser.newPage();
+  let duplicates = 0;
+  await observer.routeWebSocket(/.*/, client => {
+    const server = client.connectToServer();
+    server.onMessage(data => {
+      client.send(data);
+      const frame = JSON.parse(data.toString());
+      if (frame.t === "shared" && frame.set?.some(([key]) => key === "shared/review/comparison")) {
+        client.send(data); duplicates++;
+      }
+    });
+  });
+  for (const page of [actor,observer]) {
+    await page.goto(desk.url);
+    await page.locator("#approve-comparison:enabled").waitFor();
+  }
+  const {draft: original} = await (await actor.request.get(new URL("/api/state", desk.url).href)).json();
+  await actor.locator("#approve-comparison").click();
+  await observer.locator("#layer-compare:enabled").waitFor();
+  let held = 0, release, delivered;
+  const hold = new Promise(resolve => {release = resolve;});
+  const done = new Promise(resolve => {delivered = resolve;});
+  t.after(release);
+  await observer.route("**/api/state", async route => {
+    const response = await route.fetch();
+    const state = await response.json();
+    if (state.draft?.title === original.title && state.draft?.comparison) {
+      held++;
+      await hold;
+      await route.fulfill({response});
+      delivered();
+    } else await route.fulfill({response});
+  });
+  await actor.locator("#layer-compare").click();
+  await actor.locator(".comparison-conclusion").waitFor();
+  await until(() => held === 1 && duplicates === 1);
+  const old = await actor.locator("[data-comparison-run]").getAttribute("data-comparison-run");
+  await observer.getByRole("button", {name:"Discard draft", exact:true}).click();
+  await observer.getByRole("button", {name:"Confirm discard", exact:true}).click();
+  await observer.locator("#manual").click();
+  await observer.locator("#patch-title").fill("Recreated calendar draft");
+  await observer.locator("#patch-diff").fill(original.diff);
+  await observer.locator("#save-draft").click();
+  await observer.locator("#review-layer").getByText("Recreated calendar draft", {exact:true}).waitFor();
+  release();
+  await done;
+  await observer.locator("#layer-checks").click();
+  await observer.locator('#layer-checks[aria-pressed="true"]').waitFor();
+  assert.equal(held, 1, "Duplicated run notifications issue a single document read");
+  assert.equal(await observer.locator(".comparison-conclusion").count(), 0, "Late evidence cannot enter the replacement");
+  const checkedOtherDraft = actor.waitForResponse(response => new URL(response.url()).pathname === "/api/state");
+  await observer.locator("#layer-compare").click();
+  await observer.locator(".comparison-conclusion").waitFor();
+  const fresh = await (await checkedOtherDraft).json();
+  assert.equal(fresh.draft.title, "Recreated calendar draft");
+  assert.notEqual(await observer.locator("[data-comparison-run]").getAttribute("data-comparison-run"), old);
+  await actor.locator("#layer-checks").click();
+  await actor.locator('#layer-checks[aria-pressed="true"]').waitFor();
+  assert.equal(await actor.locator("[data-comparison-run]").getAttribute("data-comparison-run"), old);
+});
