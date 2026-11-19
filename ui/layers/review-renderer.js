@@ -60,7 +60,7 @@ function branchContent(review, repo) {
   const hint = element("details", undefined, "publish-hint");
   const quote = value => "'" + value.replaceAll("'", "''") + "'";
   hint.append(element("summary", "Publish a GitHub draft PR"),
-    element("p", "Preview the destination. Add --publish to push the branch and open a draft PR."),
+    element("p", "Preview the destination. To include comparison results, add --receipt and the path to your downloaded experiment receipt. Add --publish to open the draft PR."),
     element("code", "python publish_review.py --repo " + quote(repo) + " --branch " + quote(review.branch)));
   fragment.append(element("p", "Local review branch", "eyebrow"), element("strong", review.branch),
     element("p", "Commit " + review.commit, "mono"), hint);

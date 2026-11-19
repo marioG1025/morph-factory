@@ -10,6 +10,8 @@ Install Python 3.11 or later, Git, and Node 22 or later with npm. On Windows, do
 python3 vibecheck.py
 ```
 
+The Windows launcher also accepts the Python launcher's arguments. For example, `& '.\Open VibeCheck.cmd' --port 8766` opens a different port from PowerShell. Use `--state-dir` for an independent desk on the same checkout.
+
 The first run downloads the public VibeCheck repository into the application's local state directory and checks out commit `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24`. The desk opens at [localhost:8765](http://127.0.0.1:8765/). Keep the process running while using it. A different port can be set with `--port 8766`.
 
 1. Open **VibeCheck case file** to see the original and corrected concert dates. The example uses a fixture event on May 16 and the America/Chicago time zone.
