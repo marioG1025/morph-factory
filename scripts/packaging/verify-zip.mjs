@@ -57,7 +57,7 @@ async function start() {
         }
       });
     });
-    return {url, close};
+    return {url, close, stderr: () => messages};
   } catch (error) {await close(); throw error;}
 }
 
@@ -100,11 +100,27 @@ try {
   let page = await context.newPage();
   const errors = [];
   page.on("pageerror", err => errors.push(err.message));
+  const browserErrors = [], assetTypes = {};
+  page.on("console", message => {
+    if (message.type() === "error" && browserErrors.length < 8) browserErrors.push(message.text().slice(0, 400));
+  });
+  page.on("response", response => {
+    const path = new URL(response.url()).pathname;
+    if (["/app.js", "/layers/review-client.js", "/vendor/llp/llp-core.js"].includes(path)) {
+      assetTypes[path] = [response.status(), response.headers()["content-type"]];
+    }
+  });
   const firstStart = performance.now();
   launcher = await start();
   const listenerMs = since(firstStart);
   await page.goto(launcher.url);
-  await page.locator("#approve-comparison:enabled").waitFor({timeout:150000});
+  try {
+    await page.locator("#approve-comparison:enabled").waitFor({timeout:150000});
+  } catch (error) {
+    const status = await page.locator("#live-version, #release-description, #release-feedback, #release-log").allTextContents();
+    log("first-launch-error", {status, errors, browserErrors, assetTypes, stderr:launcher.stderr()});
+    throw error;
+  }
   const usableMs = since(firstStart);
   const installed = JSON.parse(await readFile(dependency,"utf8")).version;
   const expected = JSON.parse(await readFile(join(extracted,"runtime","package.json"),"utf8")).dependencies.ws;

@@ -25,6 +25,13 @@ from live_release import LiveRelease, live_get, live_post, take_state_lock
 
 
 UI = Path(__file__).resolve().parent / "ui"
+UI_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".wasm": "application/wasm",
+}
 MAX_BODY = 1024 * 1024
 LOGGER = logging.getLogger("morph")
 
@@ -523,7 +530,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         if not asset.is_relative_to(UI) or not asset.is_file():
             self.send_json({"error": "Unknown resource."}, 404)
             return
-        self.respond(200, asset.read_bytes(), mimetypes.guess_type(asset)[0] or "application/octet-stream")
+        # A Windows registry override can label JavaScript as text/plain. Browsers
+        # require the correct MIME types to execute our scripts and styles.
+        content_type = UI_CONTENT_TYPES.get(asset.suffix.lower()) or mimetypes.guess_type(asset)[0]
+        self.respond(200, asset.read_bytes(), content_type or "application/octet-stream")
 
     def do_POST(self):
         if not self.valid_host():
