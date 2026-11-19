@@ -95,6 +95,13 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
   };
   let cached;
   let needsRestore = false;
+  function restartFromDisk(message, cause) {
+    needsRestore = true;
+    runtime.close();
+    const error = Error(message, {cause});
+    error.restart = true;
+    return error;
+  }
   const manifestHash = manifest => sha256(new TextEncoder().encode(canonical(manifest)));
   const receiptsDir = join(stateDir, "rehearsals");
   mkdirSync(receiptsDir, {recursive:true, mode:0o700});
@@ -128,11 +135,7 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
     } catch (cause) {
       // Upstream advances its in-memory lane before saving the release and relaying it.
       // If storage throws, only a fresh verified restore can establish the committed version.
-      needsRestore = true;
-      runtime.close();
-      const error = Error("Could not confirm durable release state. Retry to restore the last signed release.", {cause});
-      error.restart = true;
-      throw error;
+      throw restartFromDisk("Could not confirm durable release state. Retry to restore the last signed release.", cause);
     }
     if (!accepted.ok) throw Error("LLP refused the release: " + accepted.reason);
   };
@@ -202,9 +205,16 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
           if (lane.version !== releaseVersion || lane.manifest["x-morph-release"] !== "compare") return {published: false};
           // The input comes from local stdio after the authoritative Python record is durable.
           const notice = JSON.stringify({run, base, digest, releaseVersion});
-          tenant.kv.set("shared/review/comparison", notice);
-          runtime.persist(tenant);
-          runtime.flush(tenant);
+          const key = "shared/review/comparison";
+          if (tenant.kv.get(key) === notice) return {published: true};
+          try {
+            tenant.kv.set(key, notice);
+            runtime.persist(tenant);
+            runtime.flush(tenant);
+          } catch (cause) {
+            // A partially failed write can leave the RAM value ahead of the journal.
+            throw restartFromDisk("Could not confirm comparison delivery. Retry with the saved run.", cause);
+          }
           return {published: true};
         });
       }

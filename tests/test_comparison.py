@@ -109,6 +109,7 @@ sys.exit(1)
         state = Path(self.temp.name) / "desk"
         command = [sys.executable, "-c", "print('check complete')"]
         desk = Desk(self.repo, state, command)
+        self.addCleanup(desk.close)
         desk.act("scan", {})
         desk.act("draft", {"title": "Change day", "diff": self.diff})
         persisted = []
@@ -123,6 +124,108 @@ sys.exit(1)
         self.assertEqual(persisted, [result])
         self.assertRegex(result["run"], "^[0-9a-f]{32}$")
         self.assertEqual(Desk(self.repo, state, command).state()["draft"]["comparison"], result)
+
+    def approved_desk(self):
+        from live_release import node_binary
+        from server import Desk
+        try:
+            node_binary()
+        except ValueError as exc:
+            self.skipTest(str(exc))
+        if not (ROOT / "runtime/node_modules/ws/package.json").exists():
+            self.skipTest("Install the factory's locked runtime dependency for the live transport tests.")
+        state = Path(self.temp.name) / "desk"
+        self.check_runs = Path(self.temp.name) / "check-runs.txt"
+        command = [sys.executable, "-c", f"with open({str(self.check_runs)!r}, 'a') as f: f.write('x')"]
+        desk = Desk(self.repo, state, command)
+        self.addCleanup(desk.close)
+        desk.act("scan", {})
+        desk.act("draft", {"title": "Change day", "diff": self.diff})
+        offer = desk.live.command("candidate")
+        desk.live.command("approve", expectedVersion=1, expectedDigest=offer["digest"])
+        return desk, state
+
+    def stored_runs(self, state):
+        runs = []
+        for log in state.rglob("log.jsonl"):
+            for line in log.read_text(encoding="utf-8").splitlines():
+                for key, value in json.loads(line).get("set", []):
+                    if key == "shared/review/comparison":
+                        runs.append(json.loads(value)["run"])
+        return runs
+
+    def test_reconnect_recovers_a_post_save_stop_once_through_session_bootstrap(self):
+        from server import RequestHandler, open_desk
+        desk, state = self.approved_desk()
+        with patch.object(desk.live, "comparison_saved", side_effect=SystemExit("stop after save")):
+            with self.assertRaises(SystemExit):
+                desk.compare({"base": self.base, "digest": draft_digest(self.diff)})
+        saved = json.loads(desk.file.read_text(encoding="utf-8"))["draft"]["comparison"]
+        self.assertEqual(self.stored_runs(state), [])
+        desk.close()
+
+        # Both the missed event and a lost acknowledgement must converge to
+        # one journal entry, even on a second complete desk/sidecar restart.
+        for _ in range(2):
+            with open_desk(self.repo, state, desk.command) as reopened:
+                with ThreadingHTTPServer(("127.0.0.1", 0), RequestHandler) as http:
+                    http.desk = reopened
+                    thread = threading.Thread(target=http.handle_request)
+                    thread.start()
+                    try:
+                        with urlopen(f"http://127.0.0.1:{http.server_port}/api/live/session", timeout=15) as reply:
+                            self.assertEqual(json.load(reply)["version"], 2)
+                    finally:
+                        thread.join(15)
+                self.assertEqual(reopened.draft["comparison"], saved)
+                self.assertEqual(self.stored_runs(state), [saved["run"]])
+        self.assertEqual(self.check_runs.read_text(), "xx")
+
+    def test_connected_peer_retries_after_transient_failure_without_session_requests(self):
+        desk, state = self.approved_desk()
+        send = desk.live.comparison_saved
+        attempts = []
+        delivered = threading.Event()
+
+        def temporarily_offline(report):
+            attempts.append(report["run"])
+            if len(attempts) == 1:
+                raise OSError("Temporary relay failure")
+            response = send(report)
+            delivered.set()
+            return response
+
+        with patch.object(desk.live, "comparison_saved", temporarily_offline), self.assertLogs("morph", "ERROR"):
+            result = desk.compare({"base": self.base, "digest": draft_digest(self.diff)})
+            self.assertTrue(delivered.wait(15), "A passive subscriber needs recovery without another HTTP request.")
+            with desk.lock:
+                self.assertIsNone(desk._notice_retry)
+            desk.live_session()
+        self.assertEqual(attempts, [result["run"], result["run"]])
+        self.assertEqual(self.stored_runs(state), [result["run"]])
+        self.assertEqual(self.check_runs.read_text(), "xx")
+
+    def test_retry_drops_a_replaced_draft_and_a_withdrawn_release(self):
+        desk, state = self.approved_desk()
+        identity = {"base": self.base, "digest": draft_digest(self.diff)}
+        for change in ("replace", "withdraw"):
+            with desk.lock:
+                with patch.object(desk.live, "comparison_saved", side_effect=OSError("Temporary failure")), \
+                     self.assertLogs("morph", "ERROR"):
+                    desk.compare(identity)
+                timer = desk._notice_retry
+                if change == "replace":
+                    # The new incarnation even has the same patch and base.
+                    desk.act("draft", {"title": "Change day again", "diff": self.diff})
+                else:
+                    desk.live.command("restore", expectedVersion=2)
+                    next_offer = desk.live.command("candidate")
+                    desk.live.command("approve", expectedVersion=3, expectedDigest=next_offer["digest"])
+            timer.join(15)
+            self.assertFalse(timer.is_alive())
+            self.assertIsNone(desk._notice_retry)
+            self.assertEqual(self.stored_runs(state), [])
+        self.assertEqual(self.check_runs.read_text(), "xxxx")
 
 
 @unittest.skipUnless(os.getenv("MORPH_VIBECHECK_REPO"), "Set MORPH_VIBECHECK_REPO to run the pinned product checks.")

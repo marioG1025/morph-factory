@@ -54,6 +54,9 @@ jobs:
       - name: Reconnect both open documents after a full desk restart
         timeout-minutes: 3
         run: node scripts/restart-desk.mjs
+      - name: Recover a saved comparison after an interrupted notification
+        timeout-minutes: 3
+        run: node scripts/restart-desk.mjs --interrupt-notification
       - name: Record browser and platform
         if: always()
         shell: bash

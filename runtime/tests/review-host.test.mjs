@@ -239,6 +239,9 @@ test("a completed comparison reaches only subscribed peers and replays the lates
   assert.equal(other.host.kv.has(key), false);
   const delta = watching.link.received.map(raw => JSON.parse(raw)).find(m => m.t === "shared" && !m.full);
   assert.deepEqual(delta.set, [[key, JSON.stringify(notice)]]);
+  const tenant = server.runtime.tenant(first.app), revision = tenant.kv.rev;
+  assert.deepEqual(await server.command({op: "comparisonSaved", ...notice}), {published: true});
+  assert.equal(tenant.kv.rev, revision, "a recovered acknowledgement does not mutate the store");
 
   const latest = {...notice, run: "2".repeat(32)};
   await server.command({op: "comparisonSaved", ...latest});
@@ -255,4 +258,30 @@ test("a completed comparison reaches only subscribed peers and replays the lates
   await server.command({op: "restore", expectedVersion: approved.version});
   assert.deepEqual(await server.command({op: "comparisonSaved", ...notice}), {published: false});
   assert.equal(server.runtime.tenant(first.app).kv.get(key), JSON.stringify(latest));
+});
+
+test("a failed marker write or flush recovers its durable value before accepting a retry", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "morph-recover-marker-"));
+  let server = await startHost(directory);
+  t.after(async () => {
+    server.close();
+    await rm(directory, {recursive: true, force: true});
+  });
+  const proposal = await server.command({op: "candidate"});
+  const active = await server.command({op: "approve", expectedVersion: 1, expectedDigest: proposal.digest});
+  const key = "shared/review/comparison";
+  for (const [i, stage] of ["persist", "flush"].entries()) {
+    const notice = {run: String(i + 1).repeat(32), base: "a".repeat(40), digest: "b".repeat(64), releaseVersion: 2};
+    server.runtime[stage] = () => { throw Error("Injected " + stage + " failure"); };
+    await assert.rejects(server.command({op: "comparisonSaved", ...notice}), error => error.restart === true);
+    await assert.rejects(server.command({op: "status"}), /Restore the last signed release/);
+    server.close();
+    server = await startHost(directory);
+    const store = server.runtime.tenant(active.app).kv;
+    assert.equal(store.get(key) === JSON.stringify(notice), stage === "flush");
+    const revision = store.rev;
+    assert.deepEqual(await server.command({op: "comparisonSaved", ...notice}), {published: true});
+    assert.equal(store.get(key), JSON.stringify(notice));
+    assert.equal(store.rev === revision, stage === "flush", "only a missing journal entry needs a write");
+  }
 });

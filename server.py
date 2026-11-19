@@ -62,7 +62,7 @@ def open_desk(repo, state_dir, command):
         try:
             yield desk
         finally:
-            desk.live.close()
+            desk.close()
 
 
 def proposal_files(payload):
@@ -104,6 +104,9 @@ class Desk:
         self.draft_generation = 0
         self.history = []
         self.comparing = False
+        self._handled_comparison = None
+        self._notice_retry = None
+        self._closed = False
         self.checking_head = False
         self.head_result = None
         if self.file.exists():
@@ -130,6 +133,53 @@ class Desk:
                 self.draft["verification"] = None
             if legacy:
                 self.persist(self.draft)
+
+    def close(self):
+        with self.lock:
+            self._closed = True
+            if self._notice_retry:
+                self._notice_retry.cancel()
+                self._notice_retry = None
+            self.live.close()
+
+    def live_session(self):
+        session = self.live.command("session")
+        with self.lock:
+            # After a restart the saved report may be newer than the host's
+            # shared cache. Reconcile before a peer subscribes for its snapshot.
+            if self._notice_retry is None:
+                self._notify_comparison()
+        return session
+
+    def _notify_comparison(self, delay=1):
+        # Caller holds the desk lock through the acknowledgement so a replaced
+        # draft can never publish its previous run. The host guards its release.
+        result = (self.draft or {}).get("comparison") or {}
+        run = result.get("run")
+        if self._closed or not run or run == self._handled_comparison:
+            return
+        try:
+            self.live.comparison_saved(result)
+        except Exception:
+            if self._notice_retry is None:
+                LOGGER.exception("Comparison saved. Retrying the live notification in %ss.", delay)
+
+                def retry():
+                    with self.lock:
+                        if self._notice_retry is timer:
+                            self._notice_retry = None
+                            self._notify_comparison(min(delay * 2, 30))
+
+                timer = threading.Timer(delay, retry)
+                timer.daemon = True
+                self._notice_retry = timer
+                timer.start()
+            return
+        # A release mismatch is a final response too. Its version cannot recur.
+        self._handled_comparison = run
+        if self._notice_retry:
+            self._notice_retry.cancel()
+            self._notice_retry = None
 
     def _require_comparable_draft(self, payload):
         try:
@@ -159,11 +209,7 @@ class Desk:
                 result["releaseVersion"] = version
                 result["run"] = secrets.token_hex(16)
                 self.persist({**current, "comparison": result}, "Compared baseline and candidate")
-            try:
-                self.live.comparison_saved(result)
-            except Exception:
-                # A peer can always retrieve the committed report through the normal desk state.
-                LOGGER.exception("Comparison saved, but the live notification could not be delivered")
+                self._notify_comparison()
             return result
         finally:
             with self.lock:

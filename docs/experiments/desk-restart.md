@@ -32,12 +32,27 @@ Firefox 153.0 and Playwright WebKit 26.5 each passed the same restart on Ubuntu 
 
 Both logs record exit of the original Python and Node processes, generation `1` before and after restart, the prior run in the full snapshot and the new run in the delta. Each peer rendered four fixed cases and two unchanged controls. Both product checkouts ended clean.
 
+## Interruption between saving and notifying
+
+A separate Windows Edge 157.0.4341.60 run stopped the Python process after it saved a second comparison and before it notified the LLP host. The test read the new run ID from the native state file while both processes were stopped. Both original browser tabs then reconnected. The operator took no further action.
+
+| Peer observation | Factory `790fc47` | With session reconciliation |
+| --- | --- | --- |
+| Run received in the first full snapshot | First, already displayed | Second, saved before interruption |
+| Report reads on reconnection | 0 | 1 |
+| New result displayed automatically | No | Yes, four fixes and two unchanged controls |
+| Product comparison invocations across both processes | 2 | 2 |
+| New comparison requests after restart | 0 | 0 |
+
+The repaired desk reconciled the native report with LLP during session bootstrap. The operator and peer both rendered the recovered run, retained their open documents and selected panes, and left the product checkout clean. The fixture injects the interruption only in the test-owned Python launcher. [Fault fixture](../../tests/browser/observe_sidecar.py) · [Browser experiment](../../scripts/restart-desk.mjs)
+
 ## Reproduce
 
 Set up the [browser dependencies](../../tests/browser/README.md), then run this command from the factory root.
 
 ```sh
 node scripts/restart-desk.mjs
+node scripts/restart-desk.mjs --interrupt-notification
 ```
 
 The script creates and removes a temporary desk state directory and product checkout. Set `MORPH_VIBECHECK_REPO` to an existing local VibeCheck checkout to seed the temporary clone. Otherwise the factory fetches its pinned product example. The original server binds a free loopback port, and the replacement opens that same port using the same saved state.

@@ -164,7 +164,9 @@ def live_get(handler, path):
         return False
     resource = path.removeprefix("/api/live/")
     try:
-        if resource in {"session", "status", "candidate", "evidence"}:
+        if resource == "session":
+            handler.send_json(handler.server.desk.live_session())
+        elif resource in {"status", "candidate", "evidence"}:
             handler.send_json(handler.server.desk.live.command(resource))
         elif re.fullmatch(r"blob/[a-f0-9]{64}", resource):
             data = handler.server.desk.live.command("blob", hash=resource.split("/")[1])
