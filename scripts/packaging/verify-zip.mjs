@@ -1,0 +1,162 @@
+// Exercise the public source distribution independently of this checkout. Playwright
+// drives the browser from here; the desk only runs code extracted from the fresh ZIP.
+import assert from "node:assert/strict";
+import {execFileSync, spawn} from "node:child_process";
+import {createHash} from "node:crypto";
+import {existsSync} from "node:fs";
+import {mkdir, mkdtemp, readFile, rm, stat} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {delimiter, dirname, join, resolve} from "node:path";
+import {parseArgs} from "node:util";
+import {launchBrowser} from "../../tests/browser/desk.mjs";
+
+const {values} = parseArgs({options:{scratch:{type:"string", default:tmpdir()}}});
+const scratch = resolve(values.scratch);
+await mkdir(scratch, {recursive:true});
+const work = await mkdtemp(join(scratch, "Morph Factory ZIP "));
+const clone = join(work, "Public source clone");
+const extracted = join(work, "Extracted release", "Morph Factory");
+const state = join(work, "Isolated desk state");
+const archive = join(work, "Morph Factory main.zip");
+const cache = join(work, "Empty npm cache");
+const python = process.env.MORPH_PYTHON || (process.platform === "win32" ? "python" : "python3");
+const publicRepo = "https://github.com/marioG1025/morph-factory.git";
+const productBase = "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24";
+const env = {...process.env, GIT_TERMINAL_PROMPT:"0", GIT_CONFIG_GLOBAL:process.platform === "win32" ? "NUL" : "/dev/null",
+  GIT_CONFIG_NOSYSTEM:"1", GIT_CONFIG_COUNT:"0", npm_config_cache:cache,
+  npm_config_registry:"https://registry.npmjs.org/", npm_config_userconfig:join(work,"empty.npmrc")};
+// The test runner's Node 22+ is the documented prerequisite. Expose it through
+// PATH so the packaged Python process discovers it by the usual launcher path.
+const pathKey = Object.keys(env).find(k => k.toLowerCase() === "path") || "PATH";
+env[pathKey] = dirname(process.execPath) + delimiter + env[pathKey];
+delete env.MORPH_NODE;
+const command = (file, args) => execFileSync(file, args, {env, encoding:"utf8", windowsHide:true}).trim();
+const git = (repo, ...args) => command("git", ["-C", repo, ...args]);
+const log = (kind, fields) => console.log(JSON.stringify({kind, ...fields}));
+const since = start => Math.round(performance.now() - start);
+
+async function start() {
+  const child = spawn(python, ["-B", "-u", "vibecheck.py", "--state-dir", state, "--port", "0", "--no-open"],
+    {cwd:extracted, env, windowsHide:true, stdio:["ignore","pipe","pipe"]});
+  const exited = new Promise(done => {child.once("error", done); child.once("close", done);});
+  const close = async () => {child.kill(); await exited;};
+  let messages = "";
+  child.stderr.on("data", data => {messages = (messages + data).slice(-4000);});
+  try {
+    const url = await new Promise((ok, fail) => {
+      const timer = setTimeout(() => fail(Error("Archive launcher timed out. " + messages)), 120000);
+      const stop = reason => {clearTimeout(timer); fail(Error("Archive launcher exited. " + reason + " " + messages));};
+      child.once("error", stop); child.once("exit", stop);
+      let stdout = "";
+      child.stdout.on("data", data => {
+        stdout += data;
+        const address = stdout.match(/http:\/\/127\.0\.0\.1:\d+\//);
+        if (address) {
+          clearTimeout(timer); child.off("error", stop); child.off("exit", stop); ok(address[0]);
+        }
+      });
+    });
+    return {url, close};
+  } catch (error) {await close(); throw error;}
+}
+
+async function api(page, path) {
+  const result = await page.request.get(new URL(path, page.url()).href);
+  assert.equal(result.status(), 200);
+  return result.json();
+}
+
+function checkoutState(repo) {
+  return {head:git(repo,"rev-parse","HEAD"), tree:git(repo,"status","--porcelain"),
+    remoteRefs:git(repo,"for-each-ref","--format=%(refname) %(objectname)","refs/remotes/")};
+}
+
+let browser, launcher;
+try {
+  const packagingStart = performance.now();
+  command("git", ["clone","--quiet","--depth","1","--branch","main","--single-branch",publicRepo,clone]);
+  const revision = git(clone, "rev-parse", "HEAD");
+  git(clone, "archive","--format=zip","--prefix=Morph Factory/","--output",archive,revision);
+  command(python, ["-m","zipfile","-e",archive,dirname(extracted)]);
+  const product = join(state, "examples", "VibeCheck");
+  const dependency = join(extracted, "runtime","node_modules","ws","package.json");
+  for (const absent of [join(extracted,".git"), dependency, product, state, cache]) assert.ok(!existsSync(absent));
+  log("package", {revision, bytes:(await stat(archive)).size, packagingMs:since(packagingStart),
+    sha256:createHash("sha256").update(await readFile(archive)).digest("hex")});
+
+  browser = await launchBrowser();
+  let context = await browser.newContext();
+  let page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", err => errors.push(err.message));
+  const firstStart = performance.now();
+  launcher = await start();
+  const listenerMs = since(firstStart);
+  await page.goto(launcher.url);
+  await page.locator("#approve-comparison:enabled").waitFor({timeout:150000});
+  const usableMs = since(firstStart);
+  const installed = JSON.parse(await readFile(dependency,"utf8")).version;
+  const expected = JSON.parse(await readFile(join(extracted,"runtime","package.json"),"utf8")).dependencies.ws;
+  assert.equal(installed, expected);
+  assert.ok(existsSync(cache));
+  const before = checkoutState(product);
+  assert.equal(before.head, productBase); assert.equal(before.tree, "");
+  const originalHeads = git(product, "for-each-ref", "--format=%(refname)", "refs/heads/").split("\n").filter(Boolean);
+  log("first-launch", {listenerMs, usableMs, python:command(python,["--version"]), git:command("git",["--version"]),
+    node:process.version, browser:browser.version(), installedWs:installed, freshProduct:true});
+
+  await page.locator("#layer-checks").click();
+  await page.locator("#approve-comparison").click();
+  await page.locator("#layer-compare:enabled").click();
+  await page.locator(".comparison-conclusion").waitFor({timeout:60000});
+  const compared = (await api(page, "/api/state")).draft;
+  assert.equal(compared.comparison.summary.fixed, 4);
+  assert.equal(compared.comparison.summary.unchanged, 2);
+  await page.locator("#layer-verify:enabled").click();
+  await page.locator("#layer-save:enabled").waitFor({timeout:60000});
+  await page.locator("#layer-save").click();
+  await page.locator("#review-layer .publish-hint").waitFor();
+  const saved = (await api(page,"/api/state")).draft;
+  const release = await api(page,"/api/live/evidence");
+  assert.equal(release.manifest.version,2);
+  assert.ok(typeof release.sig === "string" && release.sig.length > 32);
+  assert.equal(saved.verification.ok,true);
+  assert.equal(saved.base,productBase);
+  assert.equal(saved.review.commit,git(product,"rev-parse",saved.review.branch));
+  assert.equal(productBase,git(product,"rev-parse",saved.review.commit+"^"));
+  assert.deepEqual(checkoutState(product),before);
+  const finalHeads = git(product,"for-each-ref","--format=%(refname)","refs/heads/").split("\n").filter(Boolean);
+  assert.deepEqual(finalHeads.sort(), [...originalHeads,"refs/heads/"+saved.review.branch].sort());
+  assert.equal(git(product,"ls-remote","--heads","origin","refs/heads/"+saved.review.branch),"");
+  log("saved", {commit:saved.review.commit, base:saved.base, files:git(product,"diff","--name-only",productBase,saved.review.commit).split("\n"),
+    fixed:saved.comparison.summary.fixed, unchanged:saved.comparison.summary.unchanged, remoteBranchPresent:false});
+  await context.close(); await launcher.close(); launcher = null;
+
+  context = await browser.newContext();
+  page = await context.newPage();
+  page.on("pageerror", err => errors.push(err.message));
+  const restartStart = performance.now();
+  launcher = await start();
+  await page.goto(launcher.url);
+  await page.locator("#review-layer .publish-hint").waitFor({timeout:45000});
+  await page.locator(".comparison-conclusion").waitFor();
+  await page.locator("#restore-review:visible").waitFor();
+  const restartMs = since(restartStart);
+  const reopened = (await api(page,"/api/state")).draft;
+  assert.deepEqual(reopened.review,saved.review);
+  assert.deepEqual(reopened.comparison,saved.comparison);
+  assert.equal(reopened.diff,saved.diff);
+  assert.equal(reopened.verification.ok,true);
+  const evidence = await api(page,"/api/live/evidence");
+  assert.deepEqual(evidence.publicKey,release.publicKey);
+  assert.deepEqual(evidence.sig,release.sig);
+  assert.deepEqual(evidence.manifest,release.manifest);
+  assert.deepEqual(checkoutState(product),before);
+  assert.deepEqual(errors,[]);
+  log("reopened",{restartMs,release:evidence.manifest.version,samePublisher:true,
+    sameCommit:true,sameComparison:true,sourceClean:true});
+} finally {
+  await browser?.close();
+  await launcher?.close();
+  await rm(work,{force:true,recursive:true,maxRetries:6,retryDelay:180});
+}

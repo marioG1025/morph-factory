@@ -2,6 +2,7 @@
 *.py text eol=lf
 *.js text eol=lf
 *.mjs text eol=lf
+*.go text eol=lf
 *.cjs text eol=lf
 *.ts text eol=lf
 *.md text eol=lf
@@ -14,3 +15,7 @@
 *.png binary
 *.gif binary
 *.pdf binary
+runtime/vendor/** linguist-vendored
+ui/lab/llp-core.js linguist-vendored
+layers/review/llp.ts linguist-vendored
+*.wasm linguist-generated

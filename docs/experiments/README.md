@@ -6,6 +6,8 @@
 
 The [adoption measurements](adoption.md) cover 40 approvals across one, two, four and eight open tabs. The [concurrent build experiment](concurrent-build.md) records a release arriving in two open tabs during a real Vite build. The [check intake experiment](check-intake.md) starts earlier in the product workflow and turns a failing check into an editable proposal.
 
+The [Windows ZIP experiment](distribution.md) starts from an empty local state and the public repository, including first installation, an actual Git review branch, and a restart.
+
 ## The product change and the factory change
 
 | Change | Original | With the patch or release |
