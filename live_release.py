@@ -190,4 +190,9 @@ def live_post(handler, route, data):
         if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
             raise ValueError("Rehearse the candidate to approve its exact signed manifest.")
         params["expectedDigest"] = digest
-    handler.send_json(handler.server.desk.live.command(op, **params))
+    desk = handler.server.desk
+    # Order a release transition with the comparison's final check and disk commit.
+    # The project command itself runs outside this lock.
+    with desk.lock:
+        session = desk.live.command(op, **params)
+    handler.send_json(session)
