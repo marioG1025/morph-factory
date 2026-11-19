@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timezone
 from urllib.parse import unquote, urlsplit
 
-from factory import create_review_branch, inspect_repo, verify_proposal
+from factory import create_review_branch, inspect_repo, review_ref_matches, verify_proposal
 from comparison import ComparisonConflict, compare_proposal, draft_digest
 from head_check import check_head
 from propose import propose
@@ -112,6 +112,7 @@ class Desk:
             self.history = saved.get("history", [])
             if self.draft and saved.get("check") != self.command:
                 self.draft.pop("comparison", None)
+            self.recover_review()
             # Receipts are signed in memory by this instance of the verifier.
             if self.draft and not self.draft.get("review"):
                 self.draft["verification"] = None
@@ -287,12 +288,25 @@ class Desk:
         self.head_result = None
         self.draft_generation += 1
 
+    def recover_review(self):
+        if not self.draft or "pendingReview" not in self.draft:
+            return
+        draft = self.draft.copy()
+        planned = draft.pop("pendingReview")
+        if review_ref_matches(self.repo, draft["base"], draft["diff"], planned):
+            self.persist({**draft, "review": planned}, "Review branch created")
+        else:
+            # The transaction never created this ref, or someone moved it afterwards.
+            # Recovery only observes Git. A new ref still requires in-session verification.
+            self.persist(draft)
+
     def act(self, action, payload):
         if action == "check-head":
             return self.check_current(payload)
         if action == "verify":
             return self.verify_current(payload)
         with self.lock:
+            self.recover_review()
             if action == "scan":
                 self.scan = inspect_repo(self.repo)
                 if self.head_result and self.head_result["base"] != self.scan["head"]:
@@ -317,11 +331,10 @@ class Desk:
                     raise ValueError("A passing verification is required for this patch.")
                 if not payload.get("digest") or payload["digest"] != receipt["digest"]:
                     raise ValueError("The verified patch changed. Refresh and review it again.")
-                review = create_review_branch(
-                    self.repo, self.draft["base"], self.draft["diff"], self.draft["title"], receipt,
-                )
-                self.draft = {**self.draft, "review": review}
-                self.persist(self.draft, "Review branch created")
+                draft = self.draft
+                review = create_review_branch(self.repo, draft["base"], draft["diff"], draft["title"], receipt,
+                                              before_create=lambda plan: self.persist({**draft, "pendingReview": plan}))
+                self.persist({**draft, "review": review}, "Review branch created")
             return self.state()
 
     def check_expected_patch(self, payload):
@@ -334,6 +347,7 @@ class Desk:
 
     def verify_current(self, payload):
         with self.lock:
+            self.recover_review()
             self.check_expected_patch(payload)
             if self.verifying:
                 raise ValueError("A verification is already running for this checkout.")

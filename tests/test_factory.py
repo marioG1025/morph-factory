@@ -1,11 +1,14 @@
 """Git invariants that protect the maintainer's current checkout."""
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import factory
+from server import Desk
 
 
 class LocalReview(unittest.TestCase):
@@ -79,6 +82,75 @@ class LocalReview(unittest.TestCase):
         changed = {**self.draft, "diff": self.draft["diff"].replace("+cd apps/Frontend", "+cd other")}
         with self.assertRaises(ValueError):
             factory.create_review_branch(self.repo, **changed, verification=result)
+
+    def open_draft(self):
+        state_dir = Path(self.temp.name) / "desk-state"
+        desk = Desk(self.repo, state_dir, None)
+        desk.act("scan", {})
+        desk.act("draft", {})
+        return state_dir, desk
+
+    def test_process_exit_after_git_save_recovers_exactly_one_local_review(self):
+        state_dir, desk = self.open_draft()
+        (self.repo / "staged.txt").write_bytes(b"pending index")
+        self.git("add", "staged.txt")
+        (self.repo / "README.md").write_bytes(b"pending readme")
+        (self.repo / "notes.txt").write_bytes(b"untracked notes")
+        self.git("branch", "morph/other-review", self.draft["base"])
+        before = self.user_state()
+        script = """
+import os, sys
+from pathlib import Path
+from server import Desk
+class InterruptedDesk(Desk):
+    def persist(self, draft, outcome=None):
+        if outcome == 'Review branch created':
+            os._exit(75)
+        super().persist(draft, outcome)
+desk = InterruptedDesk(Path(sys.argv[1]), Path(sys.argv[2]), None)
+receipt = desk.act('verify', {})['draft']['verification']
+desk.act('review', {'digest': receipt['digest']})
+"""
+        interrupted = subprocess.run([sys.executable, "-c", script, str(self.repo), str(state_dir)],
+                                     cwd=Path(factory.__file__).parent, timeout=30, capture_output=True)
+        self.assertEqual(interrupted.returncode, 75, interrupted.stderr)
+        planned = json.loads(desk.file.read_text(encoding="utf-8"))["draft"]["pendingReview"]
+        branches = self.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads/morph/")
+        self.assertIn(f"refs/heads/{planned['branch']} {planned['commit']}", branches)
+        resumed = Desk(self.repo, state_dir, None)
+        self.assertEqual(resumed.draft["review"], planned)
+        for _ in range(2):
+            saved = resumed.act("review", {"digest": planned["digest"]})
+            self.assertEqual(saved["draft"]["review"], planned)
+        self.assertNotIn("pendingReview", saved["draft"])
+        self.assertEqual(sum(event["outcome"] == "Review branch created" for event in saved["history"]), 1)
+        self.assertEqual(self.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads/morph/"), branches)
+        self.assertEqual(self.user_state(), before)
+
+    def test_uncreated_or_moved_review_ref_is_never_adopted_or_overwritten(self):
+        state_dir, desk = self.open_draft()
+        receipt = desk.act("verify", {})["draft"]["verification"]
+        git = factory._git
+
+        def interrupt_before_ref(repo, *args, **kwargs):
+            if args[0] == "update-ref":
+                raise OSError("Interrupted before Git ref creation")
+            return git(repo, *args, **kwargs)
+
+        with patch("factory._git", interrupt_before_ref), self.assertRaises(OSError):
+            desk.act("review", {"digest": receipt["digest"]})
+        planned = desk.draft["pendingReview"]
+        self.git("branch", planned["branch"], self.draft["base"])
+        resumed = Desk(self.repo, state_dir, None)
+        self.assertIsNone(resumed.draft.get("review"))
+        self.assertIsNone(resumed.draft.get("verification"))
+        with self.assertRaisesRegex(ValueError, "passing verification"):
+            resumed.act("review", {"digest": receipt["digest"]})
+        self.git("commit", "--allow-empty", "-qm", "Advance main")
+        with self.assertRaisesRegex(ValueError, "older commit"):
+            resumed.act("review", {"digest": receipt["digest"]})
+        self.assertEqual(self.git("rev-parse", planned["branch"]), self.draft["base"])
+        self.assertEqual(self.git("branch", "--list", "morph/*").strip(), planned["branch"])
 
 
 if __name__ == "__main__":

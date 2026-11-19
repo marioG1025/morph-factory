@@ -49,6 +49,8 @@ A model run can return no supported change. Automatic scan rules, manual patch r
 
 Saving a branch is local. To preview a GitHub draft PR, use the command shown after saving a review branch. Add `--publish` to push that branch and open the draft PR using authenticated Git and GitHub CLI access to the repository.
 
+If the desk stops during **Save review branch**, reopen it with the same checkout and state directory. Before creating the Git ref, the desk records the intended branch name, commit, base, and patch digest. If that branch already points to the intended commit, the desk recovers it and records one saved review. If the ref is missing or someone has moved it, the draft stays open. Run checks again before saving. A changed checkout HEAD requires a new draft against the current commit.
+
 ```powershell
 python publish_review.py --repo "C:\projects\my-product" --branch "morph/your-review-branch"
 ```

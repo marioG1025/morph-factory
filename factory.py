@@ -231,7 +231,19 @@ def verify_proposal(repo, base, diff, command=None):
     return result
 
 
-def create_review_branch(repo, base, diff, title, verification):
+def review_ref_matches(repo, base, diff, review):
+    """Look up only the exact branch/commit in an interrupted desk save."""
+    digest = _fingerprint(base, diff)
+    if (not isinstance(review, dict) or review.get("base") != base or review.get("digest") != digest or
+            not re.fullmatch(r"morph/[a-z0-9-]+-" + digest[:8] + r"-[a-f0-9]{16}", str(review.get("branch"))) or
+            not re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", str(review.get("commit")))):
+        raise ValueError("The pending review record does not match this draft.")
+    ref = "refs/heads/" + review["branch"]
+    rows = _git(repo, "for-each-ref", "--format=%(refname) %(objectname)", ref).decode().splitlines()
+    return f"{ref} {review['commit']}" in rows
+
+
+def create_review_branch(repo, base, diff, title, verification, *, before_create=None):
     repo = _root(repo)
     _check_base(repo, base)
     digest = _fingerprint(base, diff)
@@ -253,11 +265,15 @@ def create_review_branch(repo, base, diff, title, verification):
                       "-c", "commit.gpgSign=false", "commit-tree", tree, "-p", base, "-F", "-",
                       data=(title + "\n").encode()).decode().strip()
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:44] or "change"
-    branch = f"morph/{slug}-{digest[:8]}-{secrets.token_hex(2)}"
+    suffix = secrets.token_hex(8 if before_create else 2)
+    branch = f"morph/{slug}-{digest[:8]}-{suffix}"
+    review = dict(branch=branch, commit=commit, base=base, digest=digest)
+    if before_create is not None:
+        before_create(review)
     # Both predicates are checked while Git holds the ref locks. The main index is never touched.
     transaction = f"start\nverify HEAD {base}\ncreate refs/heads/{branch} {commit}\nprepare\ncommit\n"
     _git(repo, "update-ref", "--stdin", data=transaction.encode())
-    return dict(branch=branch, commit=commit, base=base, digest=digest)
+    return review
 
 
 def _cli():
