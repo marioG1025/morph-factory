@@ -26,6 +26,9 @@ sequenceDiagram
     Host-->>Tab: Grant from active server Wasm
     Tab->>Git: Ask local desk to check original and candidate
     Git-->>Tab: Named before/after results
+    Host-->>Peer: Shared comparison-completed marker
+    Peer->>Git: Fetch matching report from the local desk
+    Git-->>Peer: Same saved result, no additional check
 ```
 
 The Python endpoint consults the current server layer before starting the work and before attaching results. The only public actions used in this walkthrough are local to the desk. The source for the [client](../layers/review/review.ts), [server](../runtime/review-host.mjs), and [Git comparison](../comparison.py) shows where each responsibility lives.

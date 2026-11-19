@@ -22,7 +22,7 @@ The launcher prepares the pinned public VibeCheck checkout, opens a calendar-dat
 
 1. In **Change review**, select **Check output**. For a second view of the release, open the desk in another tab and select **Diff** there.
 2. Click **Rehearse**. The factory tries the candidate on copies of the active browser and server state. Click **Approve Compare results**. Both open tabs gain the action and keep their own selection.
-3. Click **Run comparison** on the draft. Four date-only concert cases change from failed to passed. Two timestamp controls pass on both sides. Expand **Original output** or **Patched output** to inspect what each checkout returned.
+3. Click **Run comparison** in one tab. Both tabs display the resulting four date fixes and two unchanged timestamp controls. Each keeps its selected pane. Expand **Original output** or **Patched output** to inspect what each checkout returned.
 4. Open **Release details → Download experiment receipt**, or click **Restore original review** to withdraw the capability from the open desk. **Run checks** and **Save review branch** are separate, explicit steps for keeping the product patch.
 
 ## Bring your own repository
@@ -43,6 +43,7 @@ To keep the desk working as a product evolves, enable **Watch for new commits**.
 | Test the proposed change | A shadow browser host preserves the draft and pane. A shadow server host exercises the release and compare operations. Approval binds to the digest of the complete candidate manifest. |
 | Update the open desk | The LLP server installs the server module, persists the release and offers it over WebSocket. Each connected client verifies the signature, loads its Wasm, renders, and acknowledges the version. |
 | Run a real product check | The approved layer invokes the remote compare operation. The Python desk checks the active grant and executes trusted commands against separate Git checkouts. |
+| Update other open reviewers | The LLP shared read cache delivers a completion marker. A peer on the same draft fetches the saved report from the local desk and renders it. The product check runs once. |
 | Restore the old behavior | The operator publishes a newer signed version that references the original modules. The draft remains open. |
 
 The factory integrates LLP into its own Change review panel. The checkout under review can use its existing frontend and backend. Signing keys and active releases stay in checkout-specific local state. This version supports a single local operator. [Integration report for LLP maintainers](docs/llp-integration.md) · [Implementation and trust model](runtime/README.md)
