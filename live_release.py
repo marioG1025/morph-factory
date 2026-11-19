@@ -138,6 +138,8 @@ class LiveRelease:
                 self.close()
                 raise ValueError("The LLP server host is unavailable. Retry to restore its signed release.") from exc
             if not reply.get("ok"):
+                if reply.get("restart"):
+                    self.close()
                 raise ValueError(reply.get("error") or "The LLP server refused the operation.")
             return reply["result"]
 

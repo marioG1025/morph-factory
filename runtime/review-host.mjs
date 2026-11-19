@@ -5,8 +5,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
-import { canonical, generatePublisherKey, sha256, signManifest } from "./vendor/llp/llp-core.js";
+import { canonical, generatePublisherKey, sha256, signManifest, verifyManifest } from "./vendor/llp/llp-core.js";
 import { ServerHost, tokenAuth } from "./vendor/llp/server-host.mjs";
+import { rehearseServer } from "./rehearsal.mjs";
 
 export const APP = "morph.factory.review";
 const signingAlgorithm = {name: "ECDSA", namedCurve: "P-256"};
@@ -20,7 +21,7 @@ async function publisher(stateDir) {
   const {privateKey, publicJwk} = await generatePublisherKey();
   const privateJwk = await crypto.subtle.exportKey("jwk", privateKey);
   const pending = join(stateDir, "publisher." + process.pid + ".tmp");
-  writeFileSync(pending, JSON.stringify({privateJwk, publicKey: publicJwk}), {mode: 0o600});
+  writeFileSync(pending, JSON.stringify({privateJwk, publicKey: publicJwk}), {mode: 0o600, flush:true});
   renameSync(pending, path);
   return {privateKey, publicKey: publicJwk};
 }
@@ -67,17 +68,48 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
     if (!data) throw Error("Unknown layer hash.");
     return data;
   };
+  let cached;
+  let needsRestore = false;
+  const manifestHash = manifest => sha256(new TextEncoder().encode(canonical(manifest)));
+  const receiptsDir = join(stateDir, "rehearsals");
+  mkdirSync(receiptsDir, {recursive:true, mode:0o700});
   const candidate = async release => {
     const manifest = {llp: 1, app: APP, version: lane.version + 1, layers: variants[release],
       order: ["review", "reviewService"], hosts: {review: "client", reviewService: "server"},
       keys: {review: {own: ["review/"], read: ["desk/"]}, reviewService: {own: [], read: []}},
       caps: {review: release === "compare" ? ["deskAction", "remote", "compare"] : ["deskAction"], reviewService: []},
       overlap: release === "review" ? 0 : 30000, "x-morph-release": release};
-    const digest = await sha256(new TextEncoder().encode(canonical(manifest)));
-    return {manifest, sig: await signManifest(manifest, privateKey), publicKey, version: manifest.version, digest};
+    const digest = await manifestHash(manifest);
+    // Future stateful server slots must invalidate this snapshot if their input state changes.
+    // The review service currently owns no business data and writes only ephemeral replies.
+    if (cached?.digest === digest && cached.sourceRevision === lane.kv.rev) return cached.envelope;
+    const envelope = {manifest, sig: await signManifest(manifest, privateKey), publicKey, version: manifest.version, digest};
+    const sourceRevision = lane.kv.rev;
+    envelope.serverRehearsal = await rehearseServer({current: tenant.releases.get(null), snapshot: [...lane.kv],
+      proposed: envelope, blob, publicKey, privateKey});
+    cached = {digest, sourceRevision, envelope};
+    return envelope;
   };
   const commit = async envelope => {
-    const accepted = await runtime.offer(envelope.manifest, envelope.sig, blob);
+    const {serverRehearsal: proof} = envelope;
+    if (!proof?.ok || proof.manifestDigest !== envelope.digest)
+      throw Error("The isolated server rehearsal did not authorize this release.");
+    // Save the evidence first. A crash before commit can only leave an unreferenced receipt.
+    const proofPath = join(receiptsDir, envelope.digest + ".json");
+    writeFileSync(proofPath + ".tmp", JSON.stringify(proof), {mode:0o600, flush:true});
+    renameSync(proofPath + ".tmp", proofPath);
+    let accepted;
+    try {
+      accepted = await runtime.offer(envelope.manifest, envelope.sig, blob);
+    } catch (cause) {
+      // Upstream advances its in-memory lane before saving the release and relaying it.
+      // If storage throws, only a fresh verified restore can establish the committed version.
+      needsRestore = true;
+      runtime.close();
+      const error = Error("Could not confirm durable release state. Retry to restore the last signed release.", {cause});
+      error.restart = true;
+      throw error;
+    }
     if (!accepted.ok) throw Error("LLP refused the release: " + accepted.reason);
   };
   if (!lane.manifest) await commit(await candidate("review"));
@@ -92,24 +124,44 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
     connected: tenant.clients.size, acknowledged: [...tenant.clients].filter(c => c.version === lane.version).length,
   });
   async function transition(target, request) {
+    const same = lane.manifest["x-morph-release"] === target;
+    if (same && request.expectedVersion === lane.version - 1 &&
+        (target !== "compare" || request.expectedDigest === await manifestHash(lane.manifest))) {
+      // Commit succeeded but the approval response was lost. This exact retry creates no release.
+      return session();
+    }
     if (!Number.isSafeInteger(request.expectedVersion) || request.expectedVersion !== lane.version) {
       throw Error("The live release changed. Refresh the release details and rehearse the current candidate.");
+    }
+    if (same) {
+      if (target === "compare" && request.expectedDigest !== await manifestHash(lane.manifest))
+        throw Error("Compare results already runs a different manifest. Refresh the release details.");
+      return session();
     }
     const offered = await candidate(target);
     if (target === "compare" && request.expectedDigest !== offered.digest) {
       throw Error("The candidate release differs from the rehearsed manifest. Rehearse it again.");
     }
-    if (lane.manifest["x-morph-release"] === target) return session();
     await commit(offered);
     return session();
   }
-  return {runtime, session, status, close: () => runtime.close(), async command(request) {
+  return {runtime, session, status, close: () => { if (!needsRestore) runtime.close(); }, async command(request) {
+    if (needsRestore) throw Error("Restore the last signed release before continuing.");
     switch (request.op) {
       case "session": return session();
       case "status": return status();
       case "evidence": {
         const {manifest, sig} = tenant.releases.get(null);
-        return {manifest, sig, publicKey};
+        const digest = await manifestHash(manifest);
+        const path = join(receiptsDir, digest + ".json");
+        const result = {manifest, sig, publicKey};
+        if (existsSync(path)) {
+          const {sig: proofSig, ...proof} = JSON.parse(readFileSync(path, "utf8"));
+          if (proof.manifestDigest !== digest || !(await verifyManifest(proof, proofSig, publicKey)))
+            throw Error("The saved server rehearsal receipt does not match the active signed release.");
+          result.serverRehearsal = {...proof, sig: proofSig};
+        }
+        return result;
       }
       case "candidate": return candidate("compare");
       case "blob": return {data: Buffer.from(blob(request.hash)).toString("base64")};
@@ -134,8 +186,9 @@ async function main() {
     for await (const line of lines) {
       let answer;
       try { answer = {ok: true, result: await host.command(JSON.parse(line))}; }
-      catch (error) { answer = {ok: false, error: error.message}; }
+      catch (error) { answer = {ok: false, error: error.message, restart: error.restart === true}; }
       process.stdout.write(JSON.stringify(answer) + "\n");
+      if (answer.restart) break;
     }
   } finally { host.close(); }
 }

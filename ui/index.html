@@ -11,6 +11,7 @@
   <script defer src="/app.js"></script>
   <script defer src="/agent.js"></script>
   <script type="module" src="/layers/review-client.js"></script>
+  <script type="module" src="/layers/receipt.js"></script>
 </head>
 <body>
   <header class="masthead">
@@ -61,7 +62,17 @@
             <button class="button secondary" id="restore-review" hidden>Restore original review</button>
           </div>
           <p id="release-feedback" role="status" aria-live="polite"></p>
-          <details id="release-record" hidden><summary>Release details</summary><ol id="release-log"></ol></details>
+          <details id="release-record" hidden><summary>Release details</summary>
+            <dl class="release-facts">
+              <div><dt>Connected hosts</dt><dd id="live-adoption">Checking…</dd></div>
+              <div><dt>Browser layer</dt><dd id="live-client-hash"></dd></div>
+              <div><dt>Server layer</dt><dd id="live-server-hash"></dd></div>
+            </dl>
+            <ol id="release-log"></ol>
+            <a href="/api/live/evidence" target="_blank" rel="noopener">Inspect signed manifest</a>
+            <p><button class="button secondary" id="export-receipt">Download experiment receipt</button></p>
+            <p class="footnote" id="receipt-status" role="status">Includes the signed release and any matching comparison counts. Source code and logs stay on this desk.</p>
+          </details>
         </section>
         <div id="empty-draft" class="empty-draft">
           <div class="patch-illustration" aria-hidden="true"><i></i><i></i><i></i><i></i></div>

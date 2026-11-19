@@ -156,7 +156,7 @@ class VibeCheckComparisonTests(unittest.TestCase):
                 initial = request("live/status")[1]
                 offered = request("live/candidate")[1]
                 status, approved = request("live/approve", {"expectedVersion": initial["version"],
-                                           "expectedReviewHash": offered["manifest"]["layers"]["review"]})
+                                           "expectedDigest": offered["digest"]})
                 self.assertEqual(status, 200, approved)
                 self.assertEqual(request("compare", {**identity, "digest": "0" * 64})[0], 409)
                 status, evidence = request("compare", identity)

@@ -1,0 +1,14 @@
+--- host/server-host.mjs
++++ runtime/vendor/llp/server-host.mjs
+@@ -555,9 +555,9 @@
+   }
+ 
+   // Accept client hosts.
+-  async listen(port = 0) {
++  async listen(port = 0, bindHost = undefined) {
+     await this.ready; // clients never see a tenant before its saved state is back
+-    this.wss = new WebSocketServer({ port, maxPayload: MAX_CLIENT_MESSAGE }); // SEC-06: a call's args are capped at 64 KB anyway
++    this.wss = new WebSocketServer({ port, host: bindHost, maxPayload: MAX_CLIENT_MESSAGE }); // Morph: permit an explicit loopback bind.
+     this.wss.on("connection", (ws) => {
+       // Messages after a hello wait for it (auth may be async), so a reconnecting client can send
+       // hello and its queued calls back to back. Calls don't wait for each other.

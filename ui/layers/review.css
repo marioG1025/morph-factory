@@ -12,6 +12,9 @@
 .live-release summary,.comparison-raw summary {color:var(--muted);cursor:pointer}
 .live-release ol {padding:0;list-style:none;max-height:160px;overflow:auto;color:var(--muted);font:12px/1.6 var(--mono)}
 .live-release li {margin:5px 0;overflow-wrap:anywhere}
+.live-release a {color:var(--lime);text-underline-offset:2px}
+.release-facts {display:grid;gap:3px;margin:8px 0 0;font:12px/1.6 var(--mono)}
+.release-facts div {display:flex;gap:12px}.release-facts dt {min-width:120px;color:var(--muted)}.release-facts dd{margin:0;overflow-wrap:anywhere}
 .live-view-switch {margin-inline:20px;display:flex}
 .live-view-switch button {border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:8px 10px;font:inherit;font-size:14px}
 .live-view-switch [aria-pressed="true"] {color:var(--lime);border-color:var(--lime)}

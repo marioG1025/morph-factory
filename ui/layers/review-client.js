@@ -1,4 +1,4 @@
-import { LiveHost, sha256 } from "/vendor/llp/llp-core.js";
+import { LiveHost, canonical, sha256, verifyManifest } from "/vendor/llp/llp-core.js";
 import { connectServer } from "/vendor/llp/remote-client.mjs";
 import { paintReview } from "./review-renderer.js";
 
@@ -6,8 +6,10 @@ const $ = id => document.getElementById(id);
 const desk = window.morphDesk;
 const slot = "review";
 let host, link, session, currentEnvelope, offered, approvalInFlight = false, connecting = false;
-let digest = "", lastDiff, digestRequest = 0, report = null, checking = false, lastVersion = 0;
+let digest = "", lastDiff, lastBase, digestRequest = 0, report = null, checking = false, lastVersion = 0;
 let destroyed = false;
+let credentialsExpired = false;
+let statusRequest = false;
 
 async function request(url, body) {
   const options = {cache: "no-store"};
@@ -34,6 +36,19 @@ function record(text) {
 }
 
 function liveRelease() { return host?.manifest?.["x-morph-release"]; }
+
+async function updateEvidence() {
+  if (!$("release-record").open || statusRequest || !host?.version) return;
+  statusRequest = true;
+  try {
+    const active = await request("/api/live/status");
+    $("live-adoption").textContent = active.acknowledged + " of " + active.connected + " on release " + active.version;
+    for (const [id, hash] of [["live-client-hash",host.running().review],["live-server-hash",active.layers.reviewService]]) {
+      $(id).textContent = hash.slice(0, 16); $(id).title = hash;
+    }
+  } catch { $("live-adoption").textContent = "Host status unavailable"; }
+  finally { statusRequest = false; }
+}
 
 function showStatus() {
   const release = liveRelease();
@@ -62,12 +77,17 @@ function snapshot() {
   return {...model, report: current};
 }
 
+function identity() {
+  const base = desk.snapshot().state?.draft?.base;
+  return base && digest ? base + ":" + digest : "";
+}
+
 function project(model) {
   const {state, pending, confirmDiscard} = model;
   const draft = state?.draft;
   const stale = Boolean(state?.scan && draft && state.scan.head !== draft.base);
   return {
-    "desk/hasDraft": Number(Boolean(draft)), "desk/identity": digest,
+    "desk/hasDraft": Number(Boolean(draft)), "desk/identity": identity(),
     "desk/title": draft?.title || "", "desk/summary": $("diff-summary").textContent,
     "desk/busy": Number(pending), "desk/stale": Number(stale),
     "desk/ran": Number(Boolean(draft?.verification)), "desk/verified": Number(Boolean(draft?.verification?.ok)),
@@ -79,8 +99,8 @@ function project(model) {
 
 async function sync() {
   const draft = desk.snapshot().state?.draft;
-  if (lastDiff !== draft?.diff) {
-    lastDiff = draft?.diff;
+  if (lastDiff !== draft?.diff || lastBase !== draft?.base) {
+    lastDiff = draft?.diff; lastBase = draft?.base;
     const seq = ++digestRequest;
     digest = ""; report = null; offered = null;
     if (host) await host.exclusive(() => {
@@ -102,18 +122,19 @@ async function sync() {
 
 async function runComparison(requested) {
   const draft = desk.snapshot().state?.draft;
-  if (checking || !draft || requested !== digest) return;
+  if (checking || !draft || requested !== identity()) return;
   const base = draft.base;
+  const patchDigest = digest;
   checking = true;
   await sync();
   try {
-    const outcome = await request("/api/compare", {base, digest: requested});
-    if (digest !== requested || base !== desk.snapshot().state?.draft?.base) return;
+    const outcome = await request("/api/compare", {base, digest: patchDigest});
+    if (identity() !== requested) return;
     report = outcome;
     record("Comparison complete on " + base.slice(0, 10) + ".");
     window.dispatchEvent(new Event("morph:draft-ready"));
   } catch (err) {
-    if (requested === digest) announce(err.message, true);
+    if (requested === identity()) announce(err.message, true);
   } finally {
     checking = false;
     await sync();
@@ -156,6 +177,7 @@ async function connect() {
     if (!host) {
       host = new LiveHost({app: next.app, trustedKeys: [next.publicKey], onRender: render,
         onLog: event => {
+          if (event.msg.includes("server: unauthorized:")) credentialsExpired = true;
           if (event.kind === "reject" || event.kind === "error" || event.kind === "rollback") {
             record(event.msg); announce(event.msg, true);
           }
@@ -165,8 +187,9 @@ async function connect() {
     } else if (session && (session.publicKey.x !== next.publicKey.x || session.publicKey.y !== next.publicKey.y)) {
       throw Error("The desk publisher changed. Reopen the desk to trust its new key.");
     }
-    if (!link || !link.online || session.endpoint !== next.endpoint) {
+    if (!link || !link.online || credentialsExpired || session.endpoint !== next.endpoint) {
       link?.close();
+      credentialsExpired = false;
       link = connectServer(host, next.endpoint, {app: next.app, token: next.token, watch: [],
         retryMs: 800, queueMs: 12000});
     }
@@ -188,8 +211,15 @@ function treeHas(node, test) {
 
 async function rehearse() {
   if (!currentEnvelope || !digest) throw Error("Wait for the signed review layer and an open draft.");
-  const initialVersion = host.version, initialDigest = digest;
+  const initialVersion = host.version, initialDraft = identity();
   const candidate = await request("/api/live/candidate");
+  const fullDigest = await sha256(new TextEncoder().encode(canonical(candidate.manifest)));
+  if (candidate.digest !== fullDigest) throw Error("The candidate manifest digest does not match its contents.");
+  const {sig: receiptSignature, ...receipt} = candidate.serverRehearsal || {};
+  if (!receiptSignature || receipt.manifestDigest !== fullDigest || !receipt.ok ||
+      !await verifyManifest(receipt, receiptSignature, session.publicKey)) {
+    throw Error("The server rehearsal did not supply a passing signed receipt for this release.");
+  }
   const shadow = new LiveHost({app: session.app, trustedKeys: [session.publicKey]});
   const fetchBlob = async hash => {
     const res = await fetch("/api/live/blob/" + hash);
@@ -205,13 +235,14 @@ async function rehearse() {
     if (!accepted.ok) throw Error(accepted.reason);
     const rows = await shadow.render();
     const tree = rows.find(s => s.slot === slot)?.tree;
-    if (shadow.kv.get("desk/identity") !== initialDigest || shadow.kv.get("desk/title") !== title ||
+    if (shadow.kv.get("desk/identity") !== initialDraft || shadow.kv.get("desk/title") !== title ||
         shadow.kv.get("review/view") !== selected || !tree || !treeHas(tree, n => n.k === "button" && n.a?.id === "compare")) {
       throw Error("The candidate failed the open-draft continuity check.");
     }
-    if (host.version !== initialVersion || digest !== initialDigest) throw Error("The draft or release changed during rehearsal. Try again.");
+    if (host.version !== initialVersion || identity() !== initialDraft) throw Error("The draft or release changed during rehearsal. Try again.");
     offered = {version: initialVersion, hash: candidate.manifest.layers.review,
-      manifestDigest: candidate.digest, digest: initialDigest};
+      manifestDigest: fullDigest, draft: initialDraft};
+    record("Server rehearsal passed · comparison granted · " + receipt.elapsedMs + " ms");
     record("Rehearsal passed · draft and selected pane preserved · candidate " + offered.hash.slice(0, 12));
     announce("Rehearsal passed. The signed update keeps this draft and its selected pane.");
   } finally { shadow.close(); }
@@ -221,7 +252,7 @@ async function changeRelease(action) {
   if (approvalInFlight) return;
   approvalInFlight = true; showStatus();
   try {
-    if (action !== "restore" && (!offered || offered.version !== host.version || offered.digest !== digest)) {
+    if (action !== "restore" && (!offered || offered.version !== host.version || offered.draft !== identity())) {
       announce("Rehearsing the signed update against the open draft…");
       await rehearse();
     }
@@ -233,7 +264,7 @@ async function changeRelease(action) {
     // The browser installs only the signed manifest received from the WebSocket.
     // The HTTP approval receipt alone cannot activate a control on this desk.
     session = next;
-    record("Server committed release " + next.version + " · reviewService " + next.serverHash.slice(0, 12));
+    record("Server confirmed release " + next.version + " · reviewService " + next.serverHash.slice(0, 12));
     if (host.version < next.version) announce("Server approved. Waiting for the verified browser layer…");
   } catch (err) {
     offered = null;
@@ -250,13 +281,15 @@ window.addEventListener("morph:select-view", event => {
 $("rehearse-comparison").onclick = () => changeRelease("rehearse");
 $("approve-comparison").onclick = () => changeRelease("approve");
 $("restore-review").onclick = () => changeRelease("restore");
+$("release-record").addEventListener("toggle", updateEvidence);
 const watch = setInterval(() => {
-  if (!link?.online) connect();
+  if (!link?.online || credentialsExpired) connect();
   // The reference transport keeps wire traces for diagnostics. Trim binary frames
   // and previously seen messages after retaining the current signed envelope.
   if (link && currentEnvelope && link.received.length > 80) link.received.splice(0, link.received.length - 40);
   if (link && link.sent.length > 80) link.sent.splice(0, link.sent.length - 40);
   showStatus();
+  updateEvidence();
 }, 3000);
 window.addEventListener("pagehide", event => {
   if (event.persisted) return;

@@ -1,0 +1,11 @@
+--- layers/variants/tasks_v2.ts
++++ ui/lab/rehearsal_v2.ts
+@@ -29,7 +29,7 @@
+   const id = eventId();
+   if (id == "add") {
+     const draft = getStr("draft");
+-    if (draft.length == 0) return;
++    if (draft.length == 0) return; if (draft == "lab-rehearsal") unreachable();
+     const n = <i32>getNum("tasks.n");
+     setStr("tasks." + n.toString() + ".text", draft);
+     setNum("tasks." + n.toString() + ".done", 0);

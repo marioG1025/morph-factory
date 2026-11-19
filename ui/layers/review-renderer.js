@@ -16,6 +16,8 @@ function element(tag, text, className) {
 function printComparison(report) {
   const content = document.createDocumentFragment();
   content.append(element("p", report.conclusion, "comparison-conclusion"));
+  if (report.at && report.releaseVersion) content.append(element("p", "Measured on release " + report.releaseVersion +
+    " · " + new Date(report.at).toLocaleString(), "footnote"));
   const pair = element("div", undefined, "comparison-runs");
   for (const [title, side] of [["Original", report.baseline], ["Patched", report.candidate]]) {
     const tile = element("section", undefined, "comparison-run");
@@ -121,6 +123,8 @@ function descriptor(node, index) {
 // scroll position, browser selection, disclosure state and focused controls.
 function reconcile(parent, nodes, model, dispatch) {
   const existing = new Map([...parent.children].map(el => [el.dataset.layerKey, el]));
+  const desired = new Set((nodes || []).map(descriptor).filter(Boolean).map(shape => shape[2]));
+  for (const [key, el] of existing) if (!desired.has(key)) { el.remove(); existing.delete(key); }
   let index = 0;
   for (const node of nodes || []) {
     const shape = descriptor(node, index);

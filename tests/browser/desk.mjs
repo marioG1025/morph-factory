@@ -13,9 +13,10 @@ export async function launchBrowser() {
   return chromium.launch({headless: true, executablePath: process.env.MORPH_BROWSER_EXECUTABLE || undefined});
 }
 
-export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateDir, env = {}, port = 0} = {}) {
+export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateDir, env = {}, port = 0, observeSidecar = false} = {}) {
   const directory = await mkdtemp(join(tmpdir(), "morph-browser-"));
-  const args = ["-B", "-u", "vibecheck.py", "--no-open", "--port", String(port),
+  const launcher = observeSidecar ? "tests/browser/observe_sidecar.py" : "vibecheck.py";
+  const args = ["-B", "-u", launcher, "--no-open", "--port", String(port),
                 "--state-dir", stateDir || join(directory, "state")];
   if (repo) {
     const target = join(directory, "VibeCheck");
@@ -25,7 +26,8 @@ export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateD
   }
   await mkdir(stateDir || join(directory, "state"), {recursive: true});
   const python = process.env.MORPH_PYTHON || (process.platform === "win32" ? "python" : "python3");
-  const server = spawn(python, args, {cwd: root, env: {...process.env, ...env}, windowsHide:true, stdio:["ignore","pipe","pipe"]});
+  const server = spawn(python, args, {cwd: root, env: {...process.env, ...env,
+    MORPH_TEST_SIDECAR_PID: join(directory, "sidecar.pid")}, windowsHide:true, stdio:["ignore","pipe","pipe"]});
   let output = "", errors = "";
   const exited = new Promise(resolveExit => {
     server.once("error", resolveExit); server.once("close", resolveExit);

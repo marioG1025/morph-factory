@@ -32,6 +32,7 @@ export function connectServer(host, url, { app, token, watch, channel, id, trust
   if (app && !host.app) host.app = app; // the client is for this app only (it refuses manifests for others)
 
   function open() {
+    if (closed) return; // Morph: a retry scheduled before close() must not revive a disposed link.
     ws = new WebSocketImpl(url);
     ws.onopen = () => {
       send(hello());

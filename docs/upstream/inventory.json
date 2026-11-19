@@ -1,0 +1,89 @@
+{
+  "repository": "https://github.com/nik190799/live-layer-protocol",
+  "commit": "d14ebf9f8d17a45a3619231d4a9c63c00845bf96",
+  "files": [
+    {
+      "local": "LICENSE",
+      "source": "LICENSE",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    {
+      "local": "layers/review/llp.ts",
+      "source": "sdk/assemblyscript/llp.ts",
+      "sha256": "999810381765204f9ee6ce5ef50986a738fcf9c6164666dbcf6dac6975644547"
+    },
+    {
+      "local": "runtime/vendor/llp/LICENSE",
+      "source": "LICENSE",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    {
+      "local": "runtime/vendor/llp/at-rest.mjs",
+      "source": "host/at-rest.mjs",
+      "sha256": "a906a6e4862e738bbaa1311c9983fda10c9cbd599a50665488395501bdc55b9d"
+    },
+    {
+      "local": "runtime/vendor/llp/fleet.js",
+      "source": "host/fleet.js",
+      "sha256": "7f3ac17bcf3f6588ac60c75d10617a5019f118e71e1ce9cb12b3e6f5f037fb0b"
+    },
+    {
+      "local": "runtime/vendor/llp/llp-core.js",
+      "source": "host/llp-core.js",
+      "sha256": "93ebfbdd669c9af80e8210a29f695ae5b5ef6b68fcc2ed86d891c44e032ace91"
+    },
+    {
+      "local": "runtime/vendor/llp/llp.ts",
+      "source": "sdk/assemblyscript/llp.ts",
+      "sha256": "999810381765204f9ee6ce5ef50986a738fcf9c6164666dbcf6dac6975644547"
+    },
+    {
+      "local": "runtime/vendor/llp/remote-client.mjs",
+      "source": "host/remote-client.mjs",
+      "sha256": "7afa912b311bcb96614c93e9bcc708aa215b6cee2dd9886415e94c57a892d509",
+      "patch": "docs/upstream/remote-client.mjs.patch"
+    },
+    {
+      "local": "runtime/vendor/llp/server-host.mjs",
+      "source": "host/server-host.mjs",
+      "sha256": "d8eb58008bc993752c5cbf3f55ac7231e4a9c5b900b429fc688001d2abd10b93",
+      "patch": "docs/upstream/server-host.mjs.patch"
+    },
+    {
+      "local": "runtime/vendor/llp/server-store.mjs",
+      "source": "host/server-store.mjs",
+      "sha256": "3bafd4bacff0045a728c4ba71192fa7f7114dd976714b75a96574bc720e79453"
+    },
+    {
+      "local": "ui/lab/LICENSE.txt",
+      "source": "LICENSE",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    {
+      "local": "ui/lab/llp-core.js",
+      "source": "host/llp-core.js",
+      "sha256": "93ebfbdd669c9af80e8210a29f695ae5b5ef6b68fcc2ed86d891c44e032ace91"
+    },
+    {
+      "local": "ui/lab/rehearsal_v2.ts",
+      "source": "layers/variants/tasks_v2.ts",
+      "sha256": "d79ef295a3f4748e193753c3e044037911f1c44802a9464fe6876849aba67f1c",
+      "patch": "docs/upstream/rehearsal_v2.ts.patch"
+    },
+    {
+      "local": "ui/lab/tasks.wasm",
+      "source": "build/tasks.wasm",
+      "sha256": "13b11cec0fc0ab9b65f428c4d889e7756cf97e3b2e9427cf1136f9105caffa27"
+    },
+    {
+      "local": "ui/lab/tasks_trap.wasm",
+      "source": "build/tasks_trap.wasm",
+      "sha256": "c5dacc0d95ba7074f1fa6b5aba622614c38a0eb80e71a1d96aa4da18433e931a"
+    },
+    {
+      "local": "ui/lab/tasks_v2.wasm",
+      "source": "build/tasks_v2.wasm",
+      "sha256": "1b1e612c43e4857793864e45af4b8a67da4e9af1307d0eb8534f49e6a2e72053"
+    }
+  ]
+}

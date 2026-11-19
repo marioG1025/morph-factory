@@ -27,7 +27,8 @@ async function snapshot() {
   const quantile = q => sorted.length ? sorted[Math.ceil(q*sorted.length)-1] : null;
   const report = {...summary, elapsedSeconds: Math.round((Date.now()-began)/1000), node: process.version,
     platform: process.platform, updatedUtc: new Date().toISOString(),
-    serverCommitToTwoAcksMs: {samples: sorted.length, p50: quantile(.5), p95: quantile(.95), max: quantile(1)}};
+    approvalReturnToTwoAcksMs: {samples: sorted.length, p50: quantile(.5), p95: quantile(.95), max: quantile(1),
+      pollIntervalMs:20}};
   await writeFile(reportPath + ".tmp", JSON.stringify(report, null, 2) + "\n");
   await rename(reportPath + ".tmp", reportPath);
 }
