@@ -334,6 +334,8 @@ class Desk:
             with self.lock:
                 if self.draft_generation != generation:
                     raise ValueError("This draft changed during verification. Its results were discarded.")
+                if self.head()["head"] != snapshot["base"]:
+                    raise ValueError("The checkout changed during verification. Scan the new commit and prepare a fresh draft.")
                 self.persist({**self.draft, "verification": receipt},
                              "Checks passed" if receipt["ok"] else "Checks failed")
                 return self.state()

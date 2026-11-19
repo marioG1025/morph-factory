@@ -52,3 +52,15 @@ class OpenReview(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "draft has changed"):
             self.desk.act("discard", {"expectedPatch": {"base": self.desk.draft["base"], "digest": "old"}})
         self.assertEqual(self.desk.draft["title"], "First patch")
+
+    def test_new_commit_cannot_receive_the_old_verification(self):
+        def advancing_check(*args):
+            subprocess.run(["git", "-C", self.desk.repo, "-c", "user.name=Test",
+                            "-c", "user.email=a@example.invalid", "commit", "-qm",
+                            "Advance product", "--allow-empty"], check=True)
+            return {"ok": True}
+
+        with patch("server.verify_proposal", advancing_check):
+            with self.assertRaisesRegex(ValueError, "checkout changed during verification"):
+                self.desk.act("verify", {})
+        self.assertIsNone(self.desk.draft["verification"])
