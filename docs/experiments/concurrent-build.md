@@ -28,7 +28,7 @@ The script asserts that the controls arrived *before* the running build complete
 
 ## Withdraw a comparison already in progress
 
-In a separate run, we started the real baseline production check on release 2, restored review on release 3, and reapproved Compare on release 4. The old result came back with HTTP 409. The draft contained no comparison from that superseded run. A fresh run on release 4 reported the expected TS2339 repair and the same candidate Git tree. The check identifies entry into the trusted project command with a temporary marker so it can issue the release changes while the work is in progress.
+In a separate run, we started the real baseline production check on release 2, restored review on release 3, and reapproved Compare on release 4. The commands already in progress finished in their temporary checkouts. The desk rechecked the grant and returned HTTP 409 when attaching their result. A fresh run on release 4 reported the expected TS2339 repair and the same candidate Git tree. The check identifies entry into the trusted project command with a temporary marker so it can issue the release changes while the work is in progress.
 
 ```sh
 python3 scripts/withdraw-during-build.py --repo /path/to/pinned/VibeCheck
