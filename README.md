@@ -6,7 +6,9 @@ A local review desk for turning a product idea or a bug into a tested Git change
 
 **The desk can change while you’re using it.** Approve **Compare results** and the server enables a new operation. The matching control appears in the draft you already have open. Your selected tab, patch, and browser document survive the update. This is the first factory feature built on Nikhil Ajay Kadalge’s [Live Layer Protocol](https://github.com/nik190799/live-layer-protocol).
 
-![An open VibeCheck draft retains its Check output tab as Compare results arrives. Four date cases turn from failed to passed.](docs/media/live-review.gif)
+![Two live VibeCheck review tabs keep different panes while Compare arrives, four date cases turn green, and the original review is restored.](docs/media/peer-review.gif)
+
+[Two-tab recording and shared-cache findings](docs/experiments/shared-comparison.md) · [Single-tab walkthrough](docs/media/live-review.gif)
 
 ## Try it on a real product
 

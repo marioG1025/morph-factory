@@ -22,6 +22,8 @@ Both releases use `deskAction` to request the existing verify, save and discard 
 
 Full diffs and command output may exceed the SDK’s string buffer. The layer emits a document reference; the native renderer reads the corresponding draft data and inserts literal text into the DOM. This lets long patches scroll and lets the browser retain selections through an update.
 
+When another tab completes a comparison, the upstream shared-state mirror delivers an opaque run ID, base commit, diff digest and release version. A matching desk fetches the saved report and updates the same Wasm-rendered panel. [Cross-tab delivery experiment](../../docs/experiments/shared-comparison.md)
+
 ## Rehearse a release
 
 1. **Rehearse** obtains the candidate manifest, its signature and the signed server rehearsal. The browser recomputes SHA-256 over the canonical manifest and verifies the server receipt against the desk’s publisher.

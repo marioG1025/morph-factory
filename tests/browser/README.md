@@ -33,6 +33,7 @@ The acceptance test opens a real VibeCheck draft in two tabs, rejects a corrupte
 | --- | --- |
 | Two open desks | A tampered server rehearsal receipt blocks approval. A valid rehearsal preserves the draft. After approval, both tabs show the streamed action, the selected evidence pane survives, and the observer keeps its keyboard focus, selected text, scroll and open disclosure. |
 | Paired VibeCheck results | The calendar patch fixes four cases and preserves two controls. Restoring the original review removes the action in both open tabs. |
+| Shared comparison document | A four-field LLP marker prompts one observer read for the measured report. A duplicate notification and delayed response cannot attach an older result to a recreated draft. |
 | Keep a tested patch | The baseline layer verifies and saves a real commit on a local review branch. Clearing the completed review keeps that branch and leaves the source checkout at its clean original commit. |
 | Rejected credentials | A deliberately delayed, expired handshake receives a real server rejection. The same page obtains fresh credentials and keeps its selected pane. |
 | Restarted release host | The test terminates only its own isolated sidecar. Its desk reconnects to the new endpoint and runs a real comparison on the original open draft. |
