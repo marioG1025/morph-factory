@@ -32,6 +32,8 @@ These retrospective cases were written after both patches existed. Their inputs 
 
 ## Reproduce
 
+Firefox 153 and Playwright WebKit 26.5 reproduced the same counts on Ubuntu 24.04. Each original run passed 36 of 48 observations. Each repaired run passed 48 of 48. Both jobs used Vite 5.4.21 and the same two Git patches. The complete comparisons took 16.34 and 15.64 seconds in Firefox, and 17.48 and 14.42 seconds in WebKit, in prepared-patch then agent-patch order. [Firefox hosted evidence](https://github.com/marioG1025/morph-factory/actions/runs/44464965982/job/135360432288) · [WebKit hosted evidence](https://github.com/marioG1025/morph-factory/actions/runs/44464965982/job/135360432457)
+
 Use Python 3.11+, Git, Node 22+, npm, and the [browser dependencies](../../tests/browser/README.md). Run the comparison from the factory root.
 
 ```sh

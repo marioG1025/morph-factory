@@ -48,6 +48,8 @@ The repaired desk reconciled the native report with LLP during session bootstrap
 
 ## Reproduce
 
+The same interrupted-notification scenario passed in Firefox 153 and Playwright WebKit 26.5 on Ubuntu. The hosted jobs exercised normal release adoption, an ordinary restart, and the interruption after the durable comparison save. [Firefox](https://github.com/marioG1025/morph-factory/actions/runs/44464965982/job/135360432288) · [WebKit](https://github.com/marioG1025/morph-factory/actions/runs/44464965982/job/135360432457)
+
 Set up the [browser dependencies](../../tests/browser/README.md), then run this command from the factory root.
 
 ```sh
