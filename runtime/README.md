@@ -46,6 +46,8 @@ The wire tests use real WebSocket clients and the checked-in Wasm modules. They 
 
 For a longer local test, `node runtime/tools/soak.mjs 5 /path/to/report.json` runs for five minutes and writes its progress and final result to a JSON file. Longer runs exercise idle-worker eviction, periodic reconnection, one-hour real token expiry and restoration across server restarts. The runner operates in a temporary directory and needs no GitHub, model or production services.
 
+To test a passive VibeCheck reviewer, set up Chromium as described in the [browser guide](../tests/browser/README.md) and run `node scripts/suspended-review.mjs`. The experiment disconnects the reviewer's WebSocket and uses Chromium's debugger to pause that original document's JavaScript for 61 minutes. During the pause, an operator approves Compare and runs one comparison. On resume it checks the full shared snapshot, matching run ID, selected pane, document identity and command counts. It reports whether the relay rejected a hello carrying the original expired credential and how many successful new bootstraps the app obtained. `--smoke` runs the same scenario with a 15-second credential for setup checks.
+
 ## Bootstrap, persistence, and trust
 
 The WebSocket listens on loopback. The factory's same-origin HTTP bootstrap supplies a short-lived local operator token, the public verification key, the WebSocket address, and the active version. The connection token is checked during a WebSocket hello. Its default lifetime is one hour. Set `MORPH_SESSION_TTL_MS` to any integer from 1,000 to 86,400,000 before starting the desk to test reconnect behavior with a different lifetime.

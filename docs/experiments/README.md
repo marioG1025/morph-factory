@@ -6,7 +6,7 @@
 
 The [adoption measurements](adoption.md) cover 40 approvals across one, two, four and eight open tabs. The [concurrent build experiment](concurrent-build.md) records a release arriving in two open tabs during a real Vite build. The [check intake experiment](check-intake.md) starts earlier in the product workflow and turns a failing check into an editable proposal.
 
-The [Windows ZIP experiment](distribution.md) starts from an empty local state and the public repository, including first installation, an actual Git review branch, and a restart. The [browser engine comparison](browser-engines.md) runs the same two-tab workflow on Chromium, Firefox and WebKit.
+The [source ZIP experiment](distribution.md) starts from empty local state and exercises first installation, an actual Git review branch and a restart on macOS, Windows and Ubuntu. The [browser engine comparison](browser-engines.md) runs the same two-tab workflow on Chromium, Firefox and WebKit.
 
 The [signed-in model experiment](agent-proposal.md) follows a real calendar failure to an independently generated patch and a separate replay. In a different experiment, the factory used its own publisher to open [a draft PR on this repository](https://github.com/marioG1025/morph-factory/pull/1). Two launcher checks changed from failing to passing, and the PR includes the base, tested tree and signed release digest. Repeating publication returned the existing PR.
 
