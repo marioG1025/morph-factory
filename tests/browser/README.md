@@ -13,6 +13,22 @@ npm test
 
 The standard VibeCheck launcher obtains the pinned public repository. To use an existing local clone instead, set `MORPH_VIBECHECK_REPO` to its path. The test harness clones that checkout into its own temporary directory. Set `MORPH_BROWSER_EXECUTABLE` for an existing Chromium-compatible browser or `MORPH_PYTHON` to select a Python executable.
 
+## Optional Firefox and WebKit acceptance
+
+The [cross-browser workflow](../../.github/workflows/browser-engines.yml) runs on manual dispatch. Each Ubuntu 24.04 job installs the browser build associated with the locked Playwright version and runs the same [two-tab Change review scenario](review-acceptance.mjs) as the default Chromium suite. The job summary records the engine version, platform and outcome. The Ubuntu WebKit result applies to Playwright’s Linux build. Safari on Apple devices is a separate test target.
+
+To run the scenario locally on Ubuntu, use the following commands from `tests/browser` after `npm ci`. Choose `firefox` or `webkit` and leave `MORPH_BROWSER_EXECUTABLE` unset so the selected engine launches its matching build.
+
+```sh
+export MORPH_BROWSER_ENGINE=firefox
+npx playwright install --with-deps "$MORPH_BROWSER_ENGINE"
+npm run test:acceptance
+```
+
+The acceptance test opens a real VibeCheck draft in two tabs, rejects a corrupted rehearsal receipt, rehearses and approves the genuine release, checks pane and document continuity, and runs the paired product checks. It restores the original review, saves the verified patch on a Git branch, and confirms the source checkout is still clean.
+
+## Scenarios
+
 | Scenario | Observed behavior asserted by the suite |
 | --- | --- |
 | Two open desks | A tampered server rehearsal receipt blocks approval. A valid rehearsal preserves the draft. After approval, both tabs show the streamed action, the selected evidence pane survives, and the observer keeps its keyboard focus, selected text, scroll and open disclosure. |

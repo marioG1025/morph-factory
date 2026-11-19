@@ -9,8 +9,10 @@ const require = createRequire(import.meta.url);
 export const root = fileURLToPath(new URL("../../", import.meta.url));
 
 export async function launchBrowser() {
-  const {chromium} = require(process.env.MORPH_PLAYWRIGHT || "playwright");
-  return chromium.launch({headless: true, executablePath: process.env.MORPH_BROWSER_EXECUTABLE || undefined});
+  const engine = process.env.MORPH_BROWSER_ENGINE || "chromium";
+  if (!["chromium", "firefox", "webkit"].includes(engine)) throw Error("Select chromium, firefox or webkit with MORPH_BROWSER_ENGINE.");
+  const playwright = require(process.env.MORPH_PLAYWRIGHT || "playwright");
+  return playwright[engine].launch({headless: true, executablePath: process.env.MORPH_BROWSER_EXECUTABLE || undefined});
 }
 
 export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateDir, env = {}, port = 0,
