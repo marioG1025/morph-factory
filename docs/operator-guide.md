@@ -53,6 +53,16 @@ Saving a branch is local. To preview a GitHub draft PR, use the command shown af
 python publish_review.py --repo "C:\projects\my-product" --branch "morph/your-review-branch"
 ```
 
+To include the before-and-after results, run **Compare results** on the patch and download its experiment receipt from **Release details**. Pass that file alongside the saved branch to preview the exact Markdown evidence section.
+
+```powershell
+python publish_review.py --repo "C:\projects\my-product" --branch "morph/your-review-branch" --receipt "C:\receipts\morph-release-2.json"
+```
+
+The publisher verifies the release and passing server rehearsal signatures with the public key in the receipt. It checks that the comparison’s base commit and candidate tree match the local review commit’s parent and tree. The PR identifies the signed manifest by SHA-256 and labels the two statuses and six case counts as local observations. A receipt from another patch, missing comparison, or invalid signature stops publication before any push.
+
+Add `--publish` to the same command after checking the preview. A retry reuses a matching remote branch or PR. If an existing PR for that commit has different evidence, the command points you to the existing body for review.
+
 The helper supports github.com origins. The GitHub publication path was tested through its preview and local checks. Running with `--publish` performs the external operation. Merging and deployment use the repository's usual process.
 
 ## Implementation and evidence
