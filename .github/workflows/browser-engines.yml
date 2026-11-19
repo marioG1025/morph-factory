@@ -51,6 +51,9 @@ jobs:
         run: |
           set -o pipefail
           npm run test:acceptance | tee "$RUNNER_TEMP/morph-acceptance.tap"
+      - name: Reconnect both open documents after a full desk restart
+        timeout-minutes: 3
+        run: node scripts/restart-desk.mjs
       - name: Record browser and platform
         if: always()
         shell: bash

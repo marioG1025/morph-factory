@@ -21,6 +21,8 @@ The two-tab browser acceptance test captured one four-field delta, one observer 
 
 A short Windows Chromium run completed eleven approval, measurement and restore cycles in 38 seconds. On eight cycles the observer received a delta. On three cycles the test closed its own observer socket, confirmed one remaining server connection through approval and measurement, then reconnected the same browser document. All three full snapshots led to the matching result. No passive tab started a comparison.
 
+Restarting both the native desk and the LLP sidecar uncovered a draft generation reset that stopped the peer from displaying a new report. The fix and its before-and-after results are recorded in the [full desk restart experiment](desk-restart.md).
+
 ## Reproduce
 
 Set up the [browser dependencies](../../tests/browser/README.md) and run these commands from the factory root.
