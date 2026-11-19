@@ -4,6 +4,8 @@
 
 **Observed.** On the pinned VibeCheck draft, both open tabs gained Compare results after approval. The browser test checks the original document, selected pane and draft identity, then invokes a real product comparison. The approved server module and the browser module appear together in a signed release. [Browser scenarios](../../tests/browser/README.md) · [Portable example receipt](receipts/vibecheck-calendar.json)
 
+The [adoption measurements](adoption.md) cover 40 approvals across one, two, four and eight open tabs. The [concurrent build experiment](concurrent-build.md) records a release arriving in two open tabs during a real Vite build. The [check intake experiment](check-intake.md) starts earlier in the product workflow and turns a failing check into an editable proposal.
+
 ## The product change and the factory change
 
 | Change | Original | With the patch or release |

@@ -31,7 +31,7 @@ The launcher prepares the pinned public VibeCheck checkout, opens a calendar-dat
 python3 server.py --repo /path/to/your-product --check python -m unittest discover -s tests
 ```
 
-Supply a check that works in a clean checkout of your project. **Scan only** reads committed source. **Add your patch** imports a Git diff. **Propose an idea** uses a signed-in Codex CLI to prepare a draft. The factory captures the base commit, patch digest and verification result before saving a local branch. Publishing a GitHub draft PR is a separate command. Project checks run with your OS account’s permissions. [Operator guide](docs/operator-guide.md)
+Supply a check that works in a clean checkout of your project. On an empty desk, **Check current commit** finds failing checks before you have a patch. Choose **Prepare proposal** on a failure to edit or copy the evidence, or ask a signed-in Codex CLI to draft a fix. **Add your patch** also accepts a Git diff. The factory captures the base commit, patch digest and verification result before saving a local branch. Publishing a GitHub draft PR is a separate command. Project checks run with your OS account’s permissions. [Operator guide](docs/operator-guide.md) · [Evidence-to-proposal walkthrough](docs/experiments/check-intake.md)
 
 ## What LLP does here
 
