@@ -48,6 +48,12 @@
         <section class="panel findings-card" id="findings-panel">
           <header class="panel-head"><div class="panel-title"><span class="square-icon findings-icon" aria-hidden="true"></span><h2>Findings</h2></div><span id="finding-count" class="count">—</span></header>
           <div id="findings"></div>
+          <div id="head-intake" class="finding" hidden>
+            <button class="button secondary" id="check-head" aria-describedby="head-status" disabled>Check current commit</button>
+            <p class="footnote" id="head-status" role="status"></p>
+            <div id="head-cases"></div>
+            <details id="head-output" hidden><summary>Command output</summary><pre tabindex="0" aria-label="Current commit check output"></pre></details>
+          </div>
         </section>
         <a class="lab-link" href="/lab/index.html"><span class="lab-symbol" aria-hidden="true">⌁</span><span><strong>Live layer lab</strong><small>Explore a stateful live update</small></span><span class="lab-arrow" aria-hidden="true">↗</span></a>
       </aside>
@@ -109,6 +115,8 @@
       <input id="agent-file" maxlength="500" spellcheck="false" placeholder="src/pages/EventsPage.tsx">
       <p class="footnote">Your signed-in Codex CLI sends the idea and selected file to the model. It can read committed source in a temporary checkout to prepare a draft.</p>
       <p role="status" aria-live="polite" id="agent-status" class="footnote"></p>
+      <button class="button secondary" type="button" id="agent-copy" hidden>Copy proposal text</button>
+      <span id="agent-copy-status" class="footnote" role="status"></span>
       <button type="submit" class="button primary" id="agent-submit">Generate patch</button>
     </form>
   </dialog>

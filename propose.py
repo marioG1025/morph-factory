@@ -66,7 +66,7 @@ If the evidence does not support a useful change, output NO_CHANGE."""
     return (patch + "\n").encode()
 
 
-def propose(port, idea, cli, files=()):
+def propose(port, idea, cli, files=(), *, check_source=None):
     idea = idea.strip()
     if not idea or len(idea) > 2000:
         raise ValueError("Supply an idea of 1–2,000 characters.")
@@ -74,6 +74,9 @@ def propose(port, idea, cli, files=()):
         raise ValueError("An existing proposal occupies the desk. Discard it in the UI first.")
     state = request(port, "scan", {})
     repo, base = state["repo"], state["scan"]["head"]
+    if check_source is not None and (check_source["base"] != base or
+            (state.get("headCheck") or {}).get("id") != check_source["run"]):
+        raise ValueError("The checked commit or evidence changed. Run the check again.")
     with tempfile.TemporaryDirectory(prefix="morph-idea-", ignore_cleanup_errors=True) as tmp:
         clone = Path(tmp) / "source"
         _git(tmp, "clone", "--quiet", "--no-checkout", "--no-hardlinks", "--template=",
@@ -88,7 +91,10 @@ def propose(port, idea, cli, files=()):
         if not diff.strip():
             raise ValueError("The proposed patch produced no changes.")
     title = " ".join(idea.split())[:180]
-    request(port, "draft", dict(base=base, diff=diff, title=title, ifEmpty=True))
+    draft = dict(base=base, diff=diff, title=title, ifEmpty=True)
+    if check_source is not None:
+        draft["checkSource"] = check_source
+    request(port, "draft", draft)
     return f"Draft ready for review at http://127.0.0.1:{port}/ (base {base[:12]})."
 
 

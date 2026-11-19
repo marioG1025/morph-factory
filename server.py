@@ -18,6 +18,7 @@ from urllib.parse import unquote, urlsplit
 
 from factory import create_review_branch, inspect_repo, verify_proposal
 from comparison import ComparisonConflict, compare_proposal, draft_digest
+from head_check import check_head
 from propose import propose
 from live_release import LiveRelease, live_get, live_post, take_state_lock
 
@@ -79,6 +80,8 @@ class Desk:
         self.draft_generation = 0
         self.history = []
         self.comparing = False
+        self.checking_head = False
+        self.head_result = None
         if self.file.exists():
             saved = json.loads(self.file.read_text(encoding="utf-8"))
             if saved.get("version") != 1 or saved.get("repo") != self.repo:
@@ -123,12 +126,45 @@ class Desk:
             with self.lock:
                 self.comparing = False
 
+    def check_current(self, payload):
+        with self.lock:
+            if self.draft or self.agent["status"] == "running":
+                raise ComparisonConflict("Finish the current proposal before checking a new starting point.")
+            if self.checking_head:
+                raise ComparisonConflict("A current-commit check is already running.")
+            base = self.head()["head"]
+            if payload.get("base") != base:
+                raise ComparisonConflict("The selected commit changed. Rescan and check the current commit.")
+            generation = self.draft_generation
+            self.head_result = None
+            self.checking_head = True
+        try:
+            result = check_head(self.repo, base, self.command)
+            with self.lock:
+                if base != self.head()["head"] or generation != self.draft_generation or self.agent["status"] == "running":
+                    raise ComparisonConflict("The commit or proposal changed during the check. Run it again.")
+                self.head_result = result
+                return self.state()
+        finally:
+            with self.lock:
+                self.checking_head = False
+
+    def require_check_source(self, source):
+        result = self.head_result
+        if (not isinstance(source, dict) or not result or source.get("run") != result["id"] or
+                source.get("base") != result["base"] or result["base"] != self.head()["head"] or
+                not any(c["id"] == source.get("case") and c["status"] == "failed" for c in result["cases"])):
+            raise ComparisonConflict("This evidence belongs to a different check or commit. Run the current check again.")
+
     def start_agent(self, port, payload):
         with self.lock:
             if self.agent["status"] == "running":
                 raise ValueError("A proposal is already running.")
             if self.draft:
                 raise ValueError("Clear the current proposal before asking for another.")
+            source = payload.get("checkSource")
+            if "checkSource" in payload:
+                self.require_check_source(source)
             idea = payload.get("idea")
             path = payload.get("file", "")
             if not isinstance(idea, str) or not 1 <= len(idea.strip()) <= 2000:
@@ -144,7 +180,7 @@ class Desk:
             self.agent = {"status": "running", "message": "Codex is preparing a patch in a clean checkout."}
             def work():
                 try:
-                    propose(port, idea, [cli], [path] if path else [])
+                    propose(port, idea, [cli], [path] if path else [], check_source=source)
                     state = {"status": "ready", "message": "Your draft is ready. Review the diff and run checks."}
                 except (ValueError, OSError, subprocess.SubprocessError) as exc:
                     state = {"status": "failed", "message": str(exc)}
@@ -163,7 +199,7 @@ class Desk:
     def state(self):
         with self.lock:
             return {"repo": self.repo, "scan": self.scan, "draft": self.draft, "check": self.command,
-                    "history": self.history}
+                    "history": self.history, "headCheck": self.head_result}
 
     def head(self):
         with self.lock:
@@ -199,6 +235,8 @@ class Desk:
         self.history = history
 
     def make_draft(self, payload):
+        if "checkSource" in payload:
+            self.require_check_source(payload["checkSource"])
         if payload.get("ifEmpty") and self.draft:
             raise ValueError("A draft already exists. Discard it before creating a new one.")
         if "expectedDraft" in payload:
@@ -229,14 +267,19 @@ class Desk:
         if not title or len(title) > 200 or not diff.strip() or "\x00" in diff:
             raise ValueError("Supply a title of 1–200 characters and a nonempty text patch.")
         self.persist({"title": title, "base": current, "diff": diff, "verification": None, "review": None})
+        self.head_result = None
         self.draft_generation += 1
 
     def act(self, action, payload):
+        if action == "check-head":
+            return self.check_current(payload)
         if action == "verify":
             return self.verify_current(payload)
         with self.lock:
             if action == "scan":
                 self.scan = inspect_repo(self.repo)
+                if self.head_result and self.head_result["base"] != self.scan["head"]:
+                    self.head_result = None
             elif action == "draft":
                 self.make_draft(payload)
             elif action == "discard":
@@ -361,7 +404,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         route = urlsplit(self.path).path
         if route not in {"/api/scan", "/api/draft", "/api/verify", "/api/review", "/api/discard", "/api/agent",
-                         "/api/compare", "/api/live/approve", "/api/live/restore"}:
+                         "/api/compare", "/api/check-head", "/api/live/approve", "/api/live/restore"}:
             self.send_json({"error": "Unknown action."}, 404)
             return
         if self.headers.get_content_type() != "application/json":

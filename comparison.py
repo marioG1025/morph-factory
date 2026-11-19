@@ -55,8 +55,12 @@ def _run_check(command, cwd, files, report, timeout):
     # Repository selection must come from cwd; an inherited GIT_INDEX_FILE or
     # GIT_WORK_TREE would make a check observe the caller's working copy.
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
-    env.update(MORPH_CHANGED_PATHS=json.dumps(files, ensure_ascii=True),
-               MORPH_CASE_REPORT=str(report), PYTHONIOENCODING="utf-8")
+    env.update(MORPH_CASE_REPORT=str(report), PYTHONIOENCODING="utf-8",
+               MORPH_CHECK_SCOPE="head" if files is None else "patch")
+    if files is None:
+        env.pop("MORPH_CHANGED_PATHS", None)
+    else:
+        env["MORPH_CHANGED_PATHS"] = json.dumps(files, ensure_ascii=True)
     kwargs = {"start_new_session": True} if os.name != "nt" else {
         "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW}
     problem, exit_code = None, None

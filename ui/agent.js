@@ -3,6 +3,7 @@
   const dialog = control("dialog");
   let polling = null;
   let inProgress = false;
+  let checkSource = null;
 
   async function request(route, payload) {
     const options = payload ? {
@@ -21,7 +22,9 @@
     control("submit").disabled = inProgress || !available;
     control("open").textContent = inProgress ? "View agent progress" : "Propose an idea";
     const message = job.status === "ready" && !wasRunning ? "" : job.message;
-    control("status").textContent = available ? message : "Install and sign in to Codex CLI, then restart this desk.";
+    control("status").textContent = available ? message : checkSource ?
+      "Codex CLI is unavailable. Copy the proposal text or add a patch manually." :
+      "Install and sign in to Codex CLI, then restart this desk.";
     if (inProgress) {
       if (!polling) polling = setTimeout(refresh, 1600);
     } else if (wasRunning && job.status === "ready") {
@@ -42,17 +45,40 @@
     }
   }
 
-  control("open").addEventListener("click", () => {
+  function openProposal(source, idea) {
+    if (source || checkSource) {
+      control("idea").value = idea || "";
+      control("file").value = "";
+    }
+    checkSource = source;
+    control("copy").hidden = !source;
+    control("copy-status").textContent = "";
+    control("submit").disabled = true;
     dialog.showModal();
     control("idea").focus();
     refresh();
+  }
+  control("open").addEventListener("click", () => openProposal(null));
+  window.addEventListener("morph:check-proposal", event => openProposal(event.detail.source, event.detail.idea));
+  control("copy").addEventListener("click", async () => {
+    const field = control("idea");
+    try {
+      await navigator.clipboard.writeText(field.value);
+      control("copy-status").textContent = "Proposal text copied.";
+    } catch {
+      field.focus();
+      field.select();
+      control("copy-status").textContent = "Text selected. Use your keyboard’s Copy command.";
+    }
   });
   control("close").addEventListener("click", () => dialog.close());
   control("form").addEventListener("submit", async event => {
     event.preventDefault();
     control("submit").disabled = true;
     try {
-      show(await request("", {idea: control("idea").value.trim(), file: control("file").value.trim()}));
+      const proposal = {idea: control("idea").value.trim(), file: control("file").value.trim()};
+      if (checkSource) proposal.checkSource = checkSource;
+      show(await request("", proposal));
     } catch (error) {
       control("status").textContent = error.message;
       control("submit").disabled = false;

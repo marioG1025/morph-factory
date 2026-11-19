@@ -13,17 +13,19 @@ export async function launchBrowser() {
   return chromium.launch({headless: true, executablePath: process.env.MORPH_BROWSER_EXECUTABLE || undefined});
 }
 
-export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateDir, env = {}, port = 0, observeSidecar = false} = {}) {
+export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateDir, env = {}, port = 0,
+                                observeSidecar = false, command} = {}) {
   const directory = await mkdtemp(join(tmpdir(), "morph-browser-"));
-  const launcher = observeSidecar ? "tests/browser/observe_sidecar.py" : "vibecheck.py";
-  const args = ["-B", "-u", launcher, "--no-open", "--port", String(port),
+  const launcher = command ? "server.py" : observeSidecar ? "tests/browser/observe_sidecar.py" : "vibecheck.py";
+  const args = ["-B", "-u", launcher, ...(command ? [] : ["--no-open"]), "--port", String(port),
                 "--state-dir", stateDir || join(directory, "state")];
   if (repo) {
-    const target = join(directory, "VibeCheck");
+    const target = join(directory, command ? "product" : "VibeCheck");
     execFileSync("git", ["clone", "-q", "--no-local", resolve(repo), target]);
-    execFileSync("git", ["-C", target, "checkout", "--quiet", "--detach", "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24"]);
+    if (!command) execFileSync("git", ["-C", target, "checkout", "--quiet", "--detach", "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24"]);
     args.push("--repo", target);
   }
+  if (command) args.push("--check", ...command);
   await mkdir(stateDir || join(directory, "state"), {recursive: true});
   const python = process.env.MORPH_PYTHON || (process.platform === "win32" ? "python" : "python3");
   const server = spawn(python, args, {cwd: root, env: {...process.env, ...env,

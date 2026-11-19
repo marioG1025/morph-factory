@@ -100,6 +100,51 @@ function renderDiff(draft) {
   byId("diff-summary").textContent = "+" + added + " / −" + removed + " lines · base " + draft.base.slice(0, 10);
 }
 
+let checkingCommit = false;
+let renderedHeadRun;
+
+function renderHeadCheck() {
+  const result = state?.headCheck;
+  byId("head-intake").hidden = !state || Boolean(state.draft);
+  byId("check-head").disabled = !state?.check?.length || pending || checkingCommit;
+  let status = state?.check?.length ? "Run your configured check on a clean copy of HEAD." :
+    "Start the desk with --check and a trusted project command to check this commit.";
+  if (result) {
+    status = result.base.slice(0, 10) + " · " + result.label;
+    if (result.failed) status += " " + result.failed + (result.failed === 1 ? " named failure." : " named failures.");
+    if (result.failed + result.errors > result.cases.length) status += " Showing the first " + result.cases.length + ".";
+  }
+  byId("head-status").textContent = checkingCommit ? "Checking a clean copy of the current commit…" : status;
+  if (renderedHeadRun === result?.id) return;
+  renderedHeadRun = result?.id;
+  byId("head-output").hidden = !result?.output;
+  byId("head-output").querySelector("pre").textContent = result?.output || "";
+  const list = byId("head-cases");
+  list.replaceChildren();
+  for (const [index, item] of (result?.cases || []).entries()) {
+    const row = document.createElement("details");
+    row.open = index === 0;
+    const title = document.createElement("summary");
+    title.textContent = item.name;
+    const detail = document.createElement("p");
+    detail.className = "evidence";
+    detail.textContent = item.detail || "No additional detail from the runner.";
+    row.append(title, detail);
+    if (item.status === "failed") {
+      const proposal = document.createElement("button");
+      proposal.type = "button";
+      proposal.className = "button secondary";
+      proposal.textContent = "Prepare proposal";
+      proposal.addEventListener("click", () => window.dispatchEvent(new CustomEvent("morph:check-proposal",
+        {detail: {source:{base: result.base, run: result.id, case: item.id},
+          idea: "Fix the failing check “" + item.name + "”.\n\nCommit " + result.base +
+            (item.detail ? "\nObserved result:\n" + item.detail : "")}})));
+      row.append(proposal);
+    }
+    list.append(row);
+  }
+}
+
 function renderStages(scan, draft) {
   const steps = ["scan", "draft", "verify", "review"];
   const completed = [Boolean(scan), Boolean(draft), Boolean(draft?.verification?.ok), Boolean(draft?.review)];
@@ -165,6 +210,7 @@ function render() {
   badge.textContent = review ? "Branch saved" : stale ? "Base changed" : verified ? "Verified" : draft?.verification ? "Checks failed" : draft ? "Draft" : "Waiting";
   badge.className = "pill" + (stale || draft?.verification?.ok === false ? " bad" : verified || review ? " good" : "");
   renderFindings(scan);
+  renderHeadCheck();
   renderStages(scan, draft);
   if (!draft) {
     window.dispatchEvent(new Event("morph:desk-updated"));
@@ -243,6 +289,17 @@ async function verify() {
 }
 
 byId("scan").addEventListener("click", () => run(scan));
+byId("check-head").addEventListener("click", () => run(async () => {
+  checkingCommit = true;
+  renderHeadCheck();
+  try {
+    if (!state.scan) await update("scan");
+    await update("check-head", {base: state.scan.head});
+    message("");
+  } finally {
+    checkingCommit = false;
+  }
+}));
 byId("verify").addEventListener("click", () => run(verify));
 byId("walkthrough").addEventListener("click", () => run(async () => {
   if (!state.draft) {
