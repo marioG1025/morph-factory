@@ -6,6 +6,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import secrets
 from pathlib import Path, PureWindowsPath
 import shutil
@@ -322,6 +323,15 @@ class Desk:
                     "history": self.history, "headCheck": self.head_result, "checkKey": self.check_key,
                     "draftGeneration": self.draft_generation}
 
+    def comparison_for_run(self, run):
+        with self.lock:
+            draft = self.draft
+            result = draft.get("comparison") if draft else None
+            if (not result or result.get("run") != run or result.get("base") != draft["base"]
+                    or result.get("digest") != draft_digest(draft["diff"])):
+                return None
+            return {"draftGeneration": self.draft_generation, "comparison": result}
+
     def head(self):
         with self.lock:
             head = git_value(self.repo, "--verify", "HEAD")
@@ -525,6 +535,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/state":
             self.send_json(self.server.desk.state())
+            return
+        match = re.fullmatch(r"/api/comparisons/([0-9a-f]{32})", path)
+        if match:
+            origin = self.headers.get("Origin")
+            if origin is not None and origin != f"http://{self.headers['Host']}":
+                self.send_json({"error": "Open the local desk to read a comparison."}, 403)
+                return
+            report = self.server.desk.comparison_for_run(match[1])
+            if report is None:
+                self.send_json({"error": "This run is no longer the current draft's comparison."}, 404)
+            else:
+                self.send_json(report)
             return
         if path == "/api/head":
             try:

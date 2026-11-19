@@ -125,6 +125,55 @@ sys.exit(1)
         self.assertRegex(result["run"], "^[0-9a-f]{32}$")
         self.assertEqual(Desk(self.repo, state, command).state()["draft"]["comparison"], result)
 
+    def test_current_report_route_reads_only_the_requested_persisted_run(self):
+        from server import Desk, RequestHandler
+        state = Path(self.temp.name) / "desk"
+        desk = Desk(self.repo, state, None)
+        desk.act("scan", {})
+        desk.act("draft", {"title": "Change day", "diff": self.diff})
+        result = {"run": "a" * 32, "base": self.base, "digest": draft_digest(self.diff),
+                  "releaseVersion": 2, "summary": {"fixed": 1}}
+        desk.persist({**desk.draft, "comparison": result})
+        desk.close()
+        desk = Desk(self.repo, state, None)
+        self.addCleanup(desk.close)
+        with ThreadingHTTPServer(("127.0.0.1", 0), RequestHandler) as http:
+            http.desk = desk
+            thread = threading.Thread(target=http.serve_forever, daemon=True)
+            thread.start()
+            origin = f"http://127.0.0.1:{http.server_port}"
+            def get(path, headers=None):
+                try:
+                    response = urlopen(Request(origin + path, headers=headers or {}), timeout=5)
+                except HTTPError as exc:
+                    response = exc
+                with response:
+                    self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+                    return response.status, json.load(response)
+
+            route = "/api/comparisons/" + result["run"]
+            try:
+                with patch.object(desk.live, "command", side_effect=AssertionError("A read started the live host")), \
+                     patch("server.compare_proposal", side_effect=AssertionError("A read ran the project check")):
+                    expected = (200, {"draftGeneration": desk.draft_generation, "comparison": result})
+                    self.assertEqual(get(route), expected)
+                    self.assertEqual(get(route, {"Origin": origin}), expected)
+                    self.assertEqual(get(route, {"Origin": "https://elsewhere.invalid"})[0], 403)
+                    for invalid in ("b" * 32, result["run"].upper(), result["run"][:-1], result["run"] + "/", ""):
+                        self.assertEqual(get("/api/comparisons/" + invalid)[0], 404)
+                    for changed in ({"base": "0" * 40}, {"digest": "0" * 64}, {"run": "b" * 32}):
+                        desk.persist({**desk.draft, "comparison": {**result, **changed}})
+                        self.assertEqual(get(route)[0], 404)
+                    legacy = {key: value for key, value in result.items() if key != "run"}
+                    desk.persist({**desk.draft, "comparison": legacy})
+                    self.assertEqual(get(route)[0], 404)
+                    self.assertEqual(get("/api/state")[1]["draft"]["comparison"], legacy)
+                    desk.act("discard", {})
+                    self.assertEqual(get(route)[0], 404)
+            finally:
+                http.shutdown()
+                thread.join()
+
     def approved_desk(self):
         from live_release import node_binary
         from server import Desk
