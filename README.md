@@ -33,6 +33,8 @@ python3 server.py --repo /path/to/your-product --check python -m unittest discov
 
 Supply a check that works in a clean checkout of your project. On an empty desk, **Check current commit** finds failing checks before you have a patch. Choose **Prepare proposal** on a failure to edit or copy the evidence, or ask a signed-in Codex CLI to draft a fix. **Add your patch** also accepts a Git diff. The factory captures the base commit, patch digest and verification result before saving a local branch. Publishing a GitHub draft PR is a separate command. Project checks run with your OS account’s permissions. [Operator guide](docs/operator-guide.md) · [Evidence-to-proposal walkthrough](docs/experiments/check-intake.md)
 
+To keep the desk working as a product evolves, enable **Watch for new commits**. You can opt in to running the project check on newly observed commits. Open tabs share the same check, and a failure appears under Findings for you to review. [Two-tab watch experiment](docs/experiments/watch.md)
+
 ## What LLP does here
 
 | During a release | Implementation |

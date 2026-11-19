@@ -42,7 +42,12 @@
           <header class="panel-head"><div class="panel-title"><span class="square-icon repo-icon" aria-hidden="true"></span><h2>Repository</h2></div></header>
           <div class="repo-body"><strong id="repo-name">Connecting…</strong><p id="repo-path" class="path"></p></div>
           <dl class="repo-facts"><div><dt>Branch</dt><dd id="branch">—</dd></div><div><dt>Commit</dt><dd id="commit">—</dd></div><div><dt>Working tree</dt><dd id="tree">—</dd></div></dl>
-          <label class="watch"><input type="checkbox" id="watch" disabled>Watch for new commits</label>
+          <label class="watch"><input type="checkbox" id="watch" autocomplete="off" disabled>Watch for new commits</label>
+          <div id="watch-options" hidden>
+            <label class="watch"><input type="checkbox" id="watch-checks" autocomplete="off" disabled>Run project check on new commits</label>
+            <p id="watch-status" class="footnote" role="status"></p>
+            <code id="watch-command"></code>
+          </div>
           <a class="case-link" id="case-link" href="/lab/vibecheck.html" hidden>VibeCheck case file <span aria-hidden="true">↗</span></a>
         </section>
         <section class="panel findings-card" id="findings-panel">

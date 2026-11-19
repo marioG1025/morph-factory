@@ -91,6 +91,7 @@ class Desk:
         self.repo = str(Path(git_value(repo, "--show-toplevel")).resolve())
         git_value(self.repo, "--verify", "HEAD")
         self.command = command
+        self.check_key = hashlib.sha256(json.dumps(command).encode()).hexdigest() if command else None
         self.lock = threading.RLock()
         self.agent = {"status": "idle", "message": ""}
         repo_hash = checkout_key(self.repo)
@@ -149,25 +150,45 @@ class Desk:
             with self.lock:
                 self.comparing = False
 
-    def check_current(self, payload):
+    def check_current(self, payload, *, watched=False):
         with self.lock:
-            if self.draft or self.agent["status"] == "running":
+            generation = self.draft_generation
+            if watched and (not self.command or payload.get("checkKey") != self.check_key):
+                return {"status": "command-changed"}
+            if self.draft or self.agent["status"] == "running" or (watched and payload.get("generation") != generation):
+                if watched:
+                    return {"status": "occupied"}
                 raise ComparisonConflict("Finish the current proposal before checking a new starting point.")
-            if self.checking_head:
-                raise ComparisonConflict("A current-commit check is already running.")
             base = self.head()["head"]
             if payload.get("base") != base:
+                if watched:
+                    return {"status": "moved"}
                 raise ComparisonConflict("The selected commit changed. Rescan and check the current commit.")
-            generation = self.draft_generation
+            if self.checking_head:
+                if watched:
+                    return {"status": "running"}
+                raise ComparisonConflict("A current-commit check is already running.")
+            # A manual click always reruns. Watchers share the current evidence
+            # and in-flight slot for this checkout's immutable configured command.
+            if watched and self.head_result and self.head_result["base"] == base:
+                return {"status": "ready", "state": self.state()}
             self.head_result = None
             self.checking_head = True
         try:
             result = check_head(self.repo, base, self.command)
             with self.lock:
-                if base != self.head()["head"] or generation != self.draft_generation or self.agent["status"] == "running":
+                if generation != self.draft_generation or self.agent["status"] == "running":
+                    if watched:
+                        return {"status": "occupied"}
                     raise ComparisonConflict("The commit or proposal changed during the check. Run it again.")
+                if base != self.head()["head"]:
+                    raise ComparisonConflict("The commit changed during the check. Run it again.")
                 self.head_result = result
-                return self.state()
+                return {"status": "ready", "state": self.state()} if watched else self.state()
+        except ComparisonConflict:
+            if watched:
+                return {"status": "moved"}
+            raise
         finally:
             with self.lock:
                 self.checking_head = False
@@ -217,12 +238,15 @@ class Desk:
     def state(self):
         with self.lock:
             return {"repo": self.repo, "scan": self.scan, "draft": self.draft, "check": self.command,
-                    "history": self.history, "headCheck": self.head_result}
+                    "history": self.history, "headCheck": self.head_result, "checkKey": self.check_key,
+                    "draftGeneration": self.draft_generation}
 
     def head(self):
         with self.lock:
             head = git_value(self.repo, "--verify", "HEAD")
-            return {"head": head, "changed": bool(self.scan and self.scan["head"] != head)}
+            return {"head": head, "changed": bool(self.scan and self.scan["head"] != head),
+                    "draftGeneration": self.draft_generation, "occupied": bool(self.draft or self.agent["status"] == "running"),
+                    "checkKey": self.check_key, "checkRun": self.head_result["id"] if self.head_result else None}
 
     def persist(self, draft, outcome=None):
         self.file.parent.mkdir(parents=True, exist_ok=True)
@@ -303,11 +327,15 @@ class Desk:
     def act(self, action, payload):
         if action == "check-head":
             return self.check_current(payload)
+        if action == "watch-check":
+            return self.check_current(payload, watched=True)
         if action == "verify":
             return self.verify_current(payload)
         with self.lock:
             self.recover_review()
             if action == "scan":
+                if payload.get("ifChanged") is True and self.scan and self.scan["head"] == self.head()["head"]:
+                    return self.state()
                 self.scan = inspect_repo(self.repo)
                 if self.head_result and self.head_result["base"] != self.scan["head"]:
                     self.head_result = None
@@ -437,7 +465,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         route = urlsplit(self.path).path
         if route not in {"/api/scan", "/api/draft", "/api/verify", "/api/review", "/api/discard", "/api/agent",
-                         "/api/compare", "/api/check-head", "/api/live/approve", "/api/live/restore"}:
+                         "/api/compare", "/api/check-head", "/api/watch-check", "/api/live/approve", "/api/live/restore"}:
             self.send_json({"error": "Unknown action."}, 404)
             return
         if self.headers.get_content_type() != "application/json":

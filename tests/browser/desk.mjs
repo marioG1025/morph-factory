@@ -27,7 +27,7 @@ export async function startDesk({repo = process.env.MORPH_VIBECHECK_REPO, stateD
     if (!command) execFileSync("git", ["-C", target, "checkout", "--quiet", "--detach", "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24"]);
     args.push("--repo", target);
   }
-  if (command) args.push("--check", ...command);
+  if (command?.length) args.push("--check", ...command);
   await mkdir(stateDir || join(directory, "state"), {recursive: true});
   const python = process.env.MORPH_PYTHON || (process.platform === "win32" ? "python" : "python3");
   const server = spawn(python, args, {cwd: root, env: {...process.env, ...env,

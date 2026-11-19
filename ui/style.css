@@ -80,6 +80,9 @@ h2 {font-weight: 625; font-size: 16px; letter-spacing: -.025em}
 .repo-facts dd {margin: 0; text-align: right; font: 11px/1.6 var(--mono); overflow-wrap: anywhere}
 .watch {display: flex; align-items: center; gap: 7px; padding: 10px 20px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 12px; cursor: pointer}
 .watch input {accent-color: var(--lime); margin: 0}
+#watch-options {padding: 0 20px 12px}
+#watch-options .watch {padding: 4px 0; border: 0}
+#watch-command {display: block; color: var(--muted); font: 11px/1.5 var(--mono); overflow-wrap: anywhere}
 .case-link {display:block; font-size:12px; padding:9px 20px; color:var(--lime); border-top:1px solid var(--edge)}
 .case-link:hover {text-decoration:underline}
 .publish-hint {margin-top: 10px; color: var(--muted); font-size: 12px}

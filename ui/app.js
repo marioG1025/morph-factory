@@ -196,6 +196,7 @@ function render() {
   byId("scan").disabled = !ready;
   byId("scan").textContent = scan ? "Rescan" : "Scan only";
   byId("watch").disabled = !ready;
+  renderWatchOptions();
   byId("walkthrough").disabled = !ready || Boolean(review) || stale;
   byId("walkthrough").lastChild.textContent = draft ? (verified ? "Inspect checks" : "Verify current draft") : "Run walkthrough";
   byId("manual").disabled = !ready || !scan;
@@ -365,26 +366,120 @@ byId("patch-form").addEventListener("submit", (event) => {
   });
 });
 
-let checkingHead = false;
-byId("watch").addEventListener("change", () => {
-  clearInterval(watchTimer);
-  if (!byId("watch").checked) return;
-  if (!state?.scan && !pending) run(scan);
-  watchTimer = setInterval(async () => {
-    if (pending || checkingHead || byId("manual-dialog").open || document.hidden) return;
-    checkingHead = true;
-    try {
-      const head = await api("head");
-      if (head.changed && byId("watch").checked && !pending) await run(scan);
-    } catch (error) {
-      byId("watch").checked = false;
-      clearInterval(watchTimer);
-      message("Commit watch paused. " + error.message, true);
-    } finally {
-      checkingHead = false;
+// The subscription belongs to this tab. Its first observation is an anchor.
+// Comparing against the server's shared scan alone would let one tab consume
+// a commit change before the other watchers had observed it.
+let watchEpoch = 0, watchCursor = null, watchTarget = null, watchPolling = false, watchNote = "";
+function renderWatchOptions() {
+  const watching = byId("watch").checked;
+  byId("watch-options").hidden = !watching;
+  const checks = byId("watch-checks");
+  checks.disabled = !watching || !state?.checkKey || (!checks.checked && Boolean(state?.draft));
+  byId("watch-command").textContent = watching && state?.check ?
+    state.check.map(arg => /\s|"/.test(arg) ? JSON.stringify(arg) : arg).join(" ") : "";
+  let note = watchNote || (watchCursor ? "Watching from " + watchCursor.slice(0, 10) + "." : "Reading the current commit…");
+  if (!state?.checkKey) note = "Scanning only. Configure a trusted --check command to watch for failures.";
+  else if (state?.draft) note = checks.checked ? "Project checks are paused while a draft is open." :
+    "Watched project checks are available on an empty desk.";
+  byId("watch-status").textContent = note;
+}
+
+function scheduleWatch(delay) {
+  clearTimeout(watchTimer);
+  if (byId("watch").checked && !document.hidden) watchTimer = setTimeout(pollWatch, delay);
+}
+
+function canPoll(epoch) {
+  return epoch === watchEpoch && byId("watch").checked && !pending && !document.hidden && !document.querySelector("dialog[open]");
+}
+
+async function pollWatch() {
+  const epoch = watchEpoch;
+  if (watchPolling) return;
+  if (!canPoll(epoch)) { scheduleWatch(10000); return; }
+  watchPolling = true;
+  let delay = 10000;
+  try {
+    const head = await api("head");
+    if (!canPoll(epoch)) return;
+    const commandChanged = state?.checkKey !== head.checkKey;
+    if (commandChanged) {
+      byId("watch-checks").checked = false;
+      watchTarget = null;
+      watchNote = "The configured command changed. Review it before enabling watched checks.";
     }
-  }, 10000);
-});
+    const checks = byId("watch-checks").checked;
+    if (watchCursor !== head.head) {
+      watchTarget = watchCursor && checks && !head.occupied ?
+        {base: head.head, checkKey: head.checkKey, generation: head.draftGeneration} : null;
+      watchCursor = head.head;
+      if (!commandChanged) watchNote = "";
+    }
+    if (head.occupied) watchTarget = null;
+    const needsScan = state?.scan?.head !== head.head;
+    if (needsScan || commandChanged || state?.draftGeneration !== head.draftGeneration ||
+        (state?.headCheck?.id || null) !== head.checkRun) {
+      const before = state;
+      const fresh = needsScan ? await api("scan", {ifChanged:true}) : await api("state");
+      if (!canPoll(epoch) || state !== before) { delay = 0; return; }
+      state = fresh;
+      render();
+      // HEAD can advance inside the scan itself. Pick up the latest SHA.
+      if (state.scan?.head !== head.head) { delay = 0; return; }
+    }
+    if (!watchTarget || !checks) return;
+    watchNote = "Checking " + watchTarget.base.slice(0, 10) + "…";
+    renderWatchOptions();
+    const before = state;
+    const reply = await api("watch-check", watchTarget);
+    if (!canPoll(epoch) || state !== before) { delay = 0; return; }
+    if (reply.status === "running") {
+      watchNote = "Waiting for the active project check.";
+      delay = 1700;
+      return;
+    }
+    if (reply.status === "moved") { delay = 0; return; }
+    watchTarget = null;
+    if (reply.status === "ready") {
+      state = reply.state;
+      watchNote = "Checked " + state.headCheck.base.slice(0, 10) + ". " + state.headCheck.label;
+      if (state.headCheck.status === "error") {
+        byId("watch-checks").checked = false;
+        watchNote += " Watched checks paused. Inspect the output before enabling them again.";
+      }
+      render();
+    } else if (reply.status === "command-changed") {
+      byId("watch-checks").checked = false;
+      watchNote = "The configured command changed. Review it before enabling watched checks.";
+      delay = 0;
+    } else {
+      watchNote = reply.status === "occupied" ? "Skipped this commit because the proposal changed." : "";
+      delay = 0;
+    }
+  } catch (error) {
+    if (epoch === watchEpoch) {
+      byId("watch").checked = byId("watch-checks").checked = false;
+      watchTarget = null;
+      message("Commit watch paused. " + error.message, true);
+    }
+  } finally {
+    watchPolling = false;
+    renderWatchOptions();
+    scheduleWatch(epoch === watchEpoch ? delay : 0);
+  }
+}
+
+function resetWatch() {
+  watchEpoch++;
+  watchCursor = watchTarget = null;
+  watchNote = "";
+  if (!byId("watch").checked) byId("watch-checks").checked = false;
+  renderWatchOptions();
+  scheduleWatch(0);
+}
+byId("watch").addEventListener("change", resetWatch);
+byId("watch-checks").addEventListener("change", resetWatch);
+document.addEventListener("visibilitychange", () => scheduleWatch(0));
 
 async function connect() {
   try {

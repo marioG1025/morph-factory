@@ -4,7 +4,7 @@
   "type": "module",
   "engines": {"node": ">=22"},
   "scripts": {
-    "test": "node --test review.test.mjs intake.test.mjs",
+    "test": "node --test review.test.mjs intake.test.mjs watch.test.mjs",
     "test:acceptance": "node --test --test-reporter=tap review-acceptance.mjs"
   },
   "devDependencies": {"playwright": "1.62.1"}
