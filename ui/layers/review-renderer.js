@@ -89,6 +89,7 @@ function renderDocument(el, source, model) {
       key = draft.review.commit; build = () => branchContent(draft.review, model.state.repo); break;
     case "comparison":
       if (!model.report) return;
+      el.dataset.comparisonRun = model.report.run || "";
       key = JSON.stringify(model.report); build = () => printComparison(model.report); break;
     default: return;
   }

@@ -5,8 +5,10 @@ import { paintReview } from "./review-renderer.js";
 const $ = id => document.getElementById(id);
 const desk = window.morphDesk;
 const slot = "review";
+const comparisonKey = "shared/review/comparison";
 let host, link, session, currentEnvelope, offered, approvalInFlight = false, connecting = false;
-let digest = "", lastDiff, lastBase, digestRequest = 0, report = null, checking = false, lastVersion = 0;
+let digest = "", lastDiff, lastBase, lastGeneration, digestRequest = 0, report = null, checking = false, lastVersion = 0;
+let mirrorLookup;
 let destroyed = false;
 let credentialsExpired = false;
 let statusRequest = false;
@@ -72,8 +74,9 @@ function snapshot() {
   const model = desk.snapshot();
   const draft = model.state?.draft;
   const savedReport = draft?.comparison;
-  const current = report?.digest === digest && report?.base === draft?.base ? report :
-    savedReport?.digest === digest && savedReport?.base === draft?.base ? savedReport : null;
+  const matches = candidate => candidate && candidate.digest === digest && candidate.base === draft?.base &&
+    candidate.releaseVersion === host?.version;
+  const current = matches(report) ? report : matches(savedReport) ? savedReport : null;
   return {...model, report: current};
 }
 
@@ -98,9 +101,10 @@ function project(model) {
 }
 
 async function sync() {
-  const draft = desk.snapshot().state?.draft;
-  if (lastDiff !== draft?.diff || lastBase !== draft?.base) {
-    lastDiff = draft?.diff; lastBase = draft?.base;
+  const state = desk.snapshot().state;
+  const draft = state?.draft;
+  if (lastDiff !== draft?.diff || lastBase !== draft?.base || lastGeneration !== state?.draftGeneration) {
+    lastDiff = draft?.diff; lastBase = draft?.base; lastGeneration = state?.draftGeneration;
     const seq = ++digestRequest;
     digest = ""; report = null; offered = null;
     if (host) await host.exclusive(() => {
@@ -125,11 +129,13 @@ async function runComparison(requested) {
   if (checking || !draft || requested !== identity()) return;
   const base = draft.base;
   const patchDigest = digest;
+  const revision = digestRequest, version = host.version;
   checking = true;
   await sync();
   try {
     const outcome = await request("/api/compare", {base, digest: patchDigest});
-    if (identity() !== requested) return;
+    if (identity() !== requested || digestRequest !== revision || host.version !== version ||
+        outcome.releaseVersion !== version || outcome.base !== base || outcome.digest !== patchDigest) return;
     report = outcome;
     record("Comparison complete on " + base.slice(0, 10) + ".");
     window.dispatchEvent(new Event("morph:draft-ready"));
@@ -138,6 +144,37 @@ async function runComparison(requested) {
   } finally {
     checking = false;
     await sync();
+  }
+}
+
+// connectServer applies delta and full-snapshot frames through LiveHost.applyShared,
+// then calls onRender. The mirror contains an invalidation marker, never a report.
+async function reflectSharedComparison() {
+  if (destroyed || checking || !digest || liveRelease() !== "compare") return;
+  const raw = host.kv.get(comparisonKey);
+  if (typeof raw !== "string") return;
+  let marker;
+  try { marker = JSON.parse(raw); } catch { return; }
+  if (typeof marker?.run !== "string" || !/^[0-9a-f]{32}$/.test(marker.run) || marker.base !== lastBase ||
+      marker.digest !== digest || marker.releaseVersion !== host.version || snapshot().report?.run === marker.run) return;
+  const revision = digestRequest;
+  if (mirrorLookup?.raw === raw && mirrorLookup.revision === revision &&
+      (!mirrorLookup.retryAt || Date.now() < mirrorLookup.retryAt)) return;
+  const lookup = mirrorLookup = {raw, revision};
+  const current = () => !destroyed && mirrorLookup === lookup && digestRequest === revision &&
+    host.version === marker.releaseVersion && host.kv.get(comparisonKey) === raw;
+  try {
+    const state = await request("/api/state");
+    const draft = state.draft;
+    const result = draft?.comparison;
+    if (!current() || state.draftGeneration !== lastGeneration || draft?.base !== marker.base ||
+        draft.diff !== lastDiff || result?.run !== marker.run || result.base !== marker.base ||
+        result.digest !== marker.digest || result.releaseVersion !== marker.releaseVersion) return;
+    report = result;
+    record("Received comparison for this draft · " + marker.base.slice(0, 10));
+    await sync();
+  } catch {
+    if (current()) lookup.retryAt = Date.now() + 3000;
   }
 }
 
@@ -168,10 +205,14 @@ function render(slots) {
       if (frame.t === "manifest" && frame.manifest.version === host.version) { currentEnvelope = frame; break; }
     }
     record("Release " + host.version + " accepted · review " + host.running().review.slice(0, 12));
+    if (host.kv.get("desk/hasComparison") !== Number(Boolean(model.report))) {
+      sync().catch(e => announce(e.message, true));
+    }
     if (previous) announce(liveRelease() === "compare" ? "Compare results is ready on the open draft." :
       "Original review restored. The draft is still open.");
   }
   showStatus();
+  reflectSharedComparison();
 }
 
 async function connect() {
@@ -201,7 +242,7 @@ async function connect() {
     if (!link || !link.online || credentialsExpired || session.endpoint !== next.endpoint) {
       link?.close();
       credentialsExpired = false;
-      link = connectServer(host, next.endpoint, {app: next.app, token: next.token, watch: [],
+      link = connectServer(host, next.endpoint, {app: next.app, token: next.token, watch: [comparisonKey],
         retryMs: 800, queueMs: 12000});
       const sendRemote = host.capabilities.remote;
       host.capabilities.remote = async command => {
@@ -309,6 +350,7 @@ $("restore-review").onclick = () => changeRelease("restore");
 $("release-record").addEventListener("toggle", updateEvidence);
 const watch = setInterval(() => {
   if (!link?.online || credentialsExpired) connect();
+  if (mirrorLookup?.retryAt) reflectSharedComparison();
   // The reference transport keeps wire traces for diagnostics. Trim binary frames
   // and previously seen messages after retaining the current signed envelope.
   if (link && currentEnvelope && link.received.length > 80) link.received.splice(0, link.received.length - 40);

@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {execFileSync} from "node:child_process";
+import {createHash} from "node:crypto";
 import {release} from "node:os";
 import {launchBrowser, startDesk} from "./desk.mjs";
 
@@ -15,9 +16,20 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
   const context = await browser.newContext();
   const first = await context.newPage();
   const second = await context.newPage();
+  const sharedFrames = [];
+  const comparisonPosts = [];
+  let peerReads = 0;
+  second.on("request", request => {if (new URL(request.url()).pathname === "/api/state") peerReads++;});
+  second.on("websocket", ws => ws.on("framereceived", message => {
+    const frame = JSON.parse(message.payload.toString());
+    if (frame.t === "shared" && frame.set?.length) sharedFrames.push(frame);
+  }));
   const pageErrors = [];
   for (const p of [first,second]) {
     p.on("pageerror", e => pageErrors.push(e.message));
+    p.on("request", request => {
+      if (new URL(request.url()).pathname === "/api/compare" && request.method() === "POST") comparisonPosts.push(p);
+    });
     await p.goto(desk.url);
     await p.locator("#approve-comparison:enabled").waitFor({timeout:45000});
   }
@@ -69,10 +81,29 @@ test("approve Compare results in a live VibeCheck draft, then restore", {timeout
     return {session:window.documentSession, diff:draft.diff, base:draft.base};
   });
   assert.deepEqual(after, initial);
+  const beforeReads = peerReads;
+  const observerDocument = await second.evaluate(() => performance.timeOrigin);
   await first.locator("#layer-compare").click();
-  await first.locator(".comparison-conclusion").waitFor({timeout:90000});
-  assert.equal(await first.locator('.comparison-cases [data-kind="fixed"]').count(), 4);
-  assert.equal(await first.locator('.comparison-cases [data-kind="unchanged"]').count(), 2);
+  for (const page of [first,second]) {
+    await page.locator(".comparison-conclusion").waitFor({timeout:90000});
+    assert.equal(await page.locator('.comparison-cases [data-kind="fixed"]').count(), 4);
+    assert.equal(await page.locator('.comparison-cases [data-kind="unchanged"]').count(), 2);
+  }
+  const run = await first.locator("[data-comparison-run]").getAttribute("data-comparison-run");
+  assert.match(run, /^[0-9a-f]{32}$/);
+  assert.equal(await second.locator("[data-comparison-run]").getAttribute("data-comparison-run"), run);
+  assert.equal(peerReads - beforeReads, 1);
+  assert.equal(comparisonPosts.length, 1);
+  assert.equal(comparisonPosts[0], first);
+  assert.equal(sharedFrames.length, 1);
+  const [[key, encoded]] = sharedFrames[0].set;
+  assert.equal(key, "shared/review/comparison");
+  assert.deepEqual(sharedFrames[0], {t:"shared", set:[[key,encoded]], del:[]});
+  assert.deepEqual(JSON.parse(encoded), {run, base:initial.base,
+    digest:createHash("sha256").update(initial.diff).digest("hex"), releaseVersion:2});
+  assert.equal(await second.evaluate(() => performance.timeOrigin), observerDocument);
+  assert.equal(await diff.evaluate(el => document.activeElement === el), true);
+  assert.deepEqual(await diff.evaluate(el => ({text:getSelection().toString(), top:el.scrollTop, left:el.scrollLeft})), selected);
   await first.locator("#restore-review").click();
   for (const page of [first,second]) await page.locator("#layer-compare").waitFor({state:"detached"});
   assert.equal(await first.locator("#layer-checks").getAttribute("aria-pressed"), "true");

@@ -7,8 +7,10 @@ import { launchBrowser, startDesk } from "./desk.mjs";
 
 const duration = Number(process.env.MORPH_SOAK_MINUTES ?? 0);
 const interval = Number(process.env.MORPH_SOAK_INTERVAL_SECONDS ?? 300);
-if (!Number.isFinite(duration) || duration < 0 || !Number.isFinite(interval) || interval < 1) {
-  throw Error("Supply a nonnegative duration in minutes and a positive interval in seconds.");
+const offlineEvery = Number(process.env.MORPH_SOAK_OFFLINE_EVERY ?? 3);
+if (!Number.isFinite(duration) || duration < 0 || !Number.isFinite(interval) || interval < 1 ||
+    !Number.isSafeInteger(offlineEvery) || offlineEvery < 1) {
+  throw Error("Supply a nonnegative duration in minutes, a positive interval in seconds and a positive offline cycle frequency.");
 }
 const log = (kind, data) => console.log(JSON.stringify({at:new Date().toISOString(), kind, ...data}));
 const sha = text => createHash("sha256").update(text).digest("hex");
@@ -19,8 +21,27 @@ let completed = 0;
 try {
   browser = await launchBrowser();
   const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+  let holdObserver = false;
+  await contexts[1].routeWebSocket(/.*/, socket => {
+    if (holdObserver) socket.close({code:1000, reason:"Observer offline during soak"});
+    else socket.connectToServer();
+  });
+  await contexts[1].addInitScript(() => {
+    const NativeSocket = WebSocket;
+    window.WebSocket = class extends NativeSocket {
+      constructor(...args) { super(...args); window.soakObserverSocket = this; }
+    };
+  });
   const pages = await Promise.all(contexts.map(context => context.newPage()));
   const errors = [];
+  let peerPosts = 0, signals = [];
+  pages[1].on("request", req => {if (new URL(req.url()).pathname === "/api/compare" && req.method() === "POST") peerPosts++;});
+  pages[1].on("websocket", socket => socket.on("framereceived", frame => {
+    const message = JSON.parse(frame.payload.toString());
+    for (const [key, value] of message.t === "shared" ? message.set || [] : []) {
+      if (key === "shared/review/comparison") signals.push({run:JSON.parse(value).run, full:message.full === true});
+    }
+  }));
   await Promise.all(pages.map(async page => {
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto(desk.url, {waitUntil:"domcontentloaded"});
@@ -35,16 +56,21 @@ try {
     const [active, observer] = pages;
     const cycle = completed + 1;
     const began = performance.now();
-    // Let a disconnected observer miss an offer and catch up to the latest release.
-    if (cycle % 3 === 0) await contexts[1].setOffline(true);
+    signals = [];
+    const missed = cycle % offlineEvery === 0;
+    if (missed) {
+      // Close the observer's real, test-owned socket. Network emulation alone can
+      // leave a WebSocket connected. Prevent retries from rejoining until catch-up.
+      holdObserver = true;
+      await observer.evaluate(() => window.soakObserverSocket.close());
+      await contexts[1].setOffline(true);
+      await active.waitForFunction(async () => (await (await fetch("/api/live/status")).json()).connected === 1);
+    }
     await active.locator("#rehearse-comparison").click();
     await active.waitForFunction(() => document.querySelector("#release-feedback").textContent.includes("Rehearsal passed"));
     await active.locator("#approve-comparison").click();
     await active.locator("#layer-compare:visible").waitFor({timeout:20000});
-    if (cycle % 3 === 0) await contexts[1].setOffline(false);
-    await observer.locator("#layer-compare:visible").waitFor({timeout:20000});
     assert.equal(await active.locator("#layer-checks").getAttribute("aria-pressed"), "true");
-    assert.equal(await observer.locator("#layer-diff").getAttribute("aria-pressed"), "true");
     const whenCompared = active.waitForResponse(r => r.url().endsWith("/api/compare") && r.request().method() === "POST", {timeout:90000});
     await active.locator("#layer-compare").click();
     const response = await whenCompared;
@@ -55,6 +81,18 @@ try {
     assert.equal(result.summary.fixed, 4);
     assert.equal(result.summary.regressed, 0);
     assert.equal(result.candidate.status, "passed");
+    assert.match(result.run, /^[0-9a-f]{32}$/);
+    if (missed) {
+      assert.equal((await (await active.request.get(new URL("/api/live/status", desk.url).href)).json()).connected, 1);
+      assert.equal(await observer.locator("#layer-compare").count(), 0);
+      holdObserver = false;
+      await contexts[1].setOffline(false);
+    }
+    await observer.locator('[data-comparison-run="' + result.run + '"] .comparison-conclusion').waitFor({timeout:35000});
+    assert.equal(await observer.locator('.comparison-cases [data-kind="fixed"]').count(), 4);
+    assert.equal(await observer.locator("#layer-diff").getAttribute("aria-pressed"), "true");
+    assert.equal(peerPosts, 0);
+    assert.ok(signals.some(signal => signal.run === result.run && signal.full === missed), "Observer received matching LLP marker");
     await active.locator("#restore-review").click();
     await Promise.all(pages.map(page => page.locator("#layer-compare").waitFor({state:"hidden",timeout:20000})));
     const final = (await (await active.request.get(new URL("/api/state", desk.url).href)).json()).draft;
@@ -65,7 +103,7 @@ try {
     completed++;
     log("cycle", {cycle, elapsedMs:Math.round(performance.now() - began), fixed:result.summary.fixed,
       regressed:result.summary.regressed, release:result.releaseVersion, documentsPreserved:pages.length,
-      observerMissedOffer:cycle % 3 === 0});
+      observerMissedOffer:missed, peerRun:result.run, peerReceived:missed ? "full" : "delta"});
     const left = started + duration * 60000 - Date.now();
     if (left <= 0) break;
     await delay(Math.min(interval * 1000, left));
