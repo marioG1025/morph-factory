@@ -30,6 +30,8 @@ sequenceDiagram
 
 The Python endpoint consults the current server layer before starting the work and before attaching results. The only public actions used in this walkthrough are local to the desk. The source for the [client](../layers/review/review.ts), [server](../runtime/review-host.mjs), and [Git comparison](../comparison.py) shows where each responsibility lives.
 
+**What can change live?** A release can compose the existing view nodes, alter review state and actions, and introduce behavior in its paired server module. The operator approves that pair. The browser shell already knows how to display a diff, check log and comparison document. A future layer that needs an entirely new native document type also needs renderer support. [Review renderer](../ui/layers/review-renderer.js) · [Layer ABI](../layers/review/README.md)
+
 ## Findings for a host implementer
 
 | Observation | Reproduction |
