@@ -27,6 +27,8 @@ A short Windows Chromium run completed eleven approval, measurement and restore 
 
 Restarting both the native desk and the LLP sidecar uncovered a draft generation reset that stopped the peer from displaying a new report. The fix and its before-and-after results are recorded in the [full desk restart experiment](desk-restart.md).
 
+**A reviewer returned after 61 minutes offline.** We disconnected its real WebSocket, paused the Chromium document with an acknowledged debugger pause and let its normal one-hour credential expire. The other reviewer approved release 2 and ran one VibeCheck comparison during the absence. At resume, the original credential had expired 60 seconds earlier. The returning tab obtained one fresh session, accepted a full shared snapshot and displayed that exact four-fix run in 48 ms on this workstation. It retained its document and Check output pane and submitted zero comparison requests. This resume obtained a new credential before an expired hello was observed. [Long-idle reproduction](../../scripts/suspended-review.mjs)
+
 ## Reproduce
 
 Set up the [browser dependencies](../../tests/browser/README.md) and run these commands from the factory root.

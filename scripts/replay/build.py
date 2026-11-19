@@ -27,7 +27,9 @@ def build(output):
     for release in recording["releases"]:
         if any(key not in blobs for key in release["manifest"]["layers"].values()):
             raise ValueError("A signed release references a module outside the bundled replay.")
-    core = base64.b64encode((ROOT / "runtime/vendor/llp/llp-core.js").read_bytes()).decode("ascii")
+    # Embed the pinned Git source bytes even when a Windows checkout has CRLF.
+    core_source = (ROOT / "runtime/vendor/llp/llp-core.js").read_bytes().replace(b"\r\n", b"\n")
+    core = base64.b64encode(core_source).decode("ascii")
     script = (HERE / "replay.mjs").read_text(encoding="utf-8").replace(
         '"./llp-core.js"', '"data:text/javascript;base64,' + core + '"')
     page = (HERE / "page.html").read_text(encoding="utf-8")

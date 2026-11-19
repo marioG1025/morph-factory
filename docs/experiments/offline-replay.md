@@ -26,6 +26,8 @@ python3 scripts/replay/build.py Morph-Factory-Replay.html
 
 The [browser test](../../tests/browser/replay.test.mjs) opens the local file with network access disabled, follows all three signed releases in one document, checks the two actual server replies and the six case rows, then tries an altered manifest. The replay stops at that altered release.
 
+The builder normalizes Windows text line endings when embedding the pinned host source. Building from the existing Windows checkout and from a freshly extracted Git archive produced the same HTML SHA-256. The release includes a checksum for the downloadable file.
+
 To repeat the product work, supply a VibeCheck clone containing the pinned commit. The capture script creates an independent checkout, local signing key and state directory, so a new run has its own signatures. Two independent captures reproduced the same product base, patch digest, tree and case outcomes.
 
 ```sh
