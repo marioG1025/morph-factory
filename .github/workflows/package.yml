@@ -36,6 +36,10 @@ jobs:
       - name: Package this exact source commit
         shell: bash
         run: git archive --format=zip --prefix=morph-factory/ --output="$RUNNER_TEMP/Morph Factory.zip" HEAD
+      - name: Measure first and repeat listener startup on macOS
+        if: runner.os == 'macOS'
+        timeout-minutes: 4
+        run: python scripts/packaging/profile-launch.py
       - name: Prepare the test browser
         shell: bash
         working-directory: tests/browser
