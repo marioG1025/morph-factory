@@ -1,0 +1,21 @@
+name: Bug report
+description: Report unexpected behavior in the review desk or live layer.
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the starting draft, action, and visible outcome. Remove private source and credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Versions
+      placeholder: Factory commit, OS, browser, Python and Node versions

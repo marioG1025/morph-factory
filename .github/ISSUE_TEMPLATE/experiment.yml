@@ -1,0 +1,23 @@
+name: Protocol experiment
+description: Propose a question about updating the live factory.
+title: "[Experiment] "
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to learn?
+      placeholder: Can an already-open review accept a new capability while a check is running?
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: What would count as a pass or failure?
+      description: Name the action, the state to preserve, and the observation someone else can repeat.
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Test repository and revision
+      placeholder: owner/repository at commit
