@@ -10,6 +10,7 @@ sequenceDiagram
     participant Tab as Open review tab
     participant Host as LLP publisher and server host
     participant Peer as Second open tab
+    participant Desk as Local Python desk
     participant Git as Product checkouts
     Operator->>Tab: Approve Compare results
     Tab->>Host: Request candidate and signed server rehearsal
@@ -24,11 +25,15 @@ sequenceDiagram
     Operator->>Tab: Run comparison
     Tab->>Host: Invoke reviewService compare
     Host-->>Tab: Grant from active server Wasm
-    Tab->>Git: Ask local desk to check original and candidate
-    Git-->>Tab: Named before/after results
+    Tab->>Desk: Request comparison for this draft
+    Desk->>Host: Verify current operation grant
+    Desk->>Git: Run the same check in both checkouts
+    Git-->>Desk: Named before/after results
+    Desk->>Host: Publish marker after recording the result
+    Desk-->>Tab: Saved comparison
     Host-->>Peer: Shared comparison-completed marker
-    Peer->>Git: Fetch matching report from the local desk
-    Git-->>Peer: Same saved result, no additional check
+    Peer->>Desk: Fetch matching report
+    Desk-->>Peer: Same saved result, no additional check
 ```
 
 The Python endpoint consults the current server layer before starting the work and before attaching results. The only public actions used in this walkthrough are local to the desk. The source for the [client](../layers/review/review.ts), [server](../runtime/review-host.mjs), and [Git comparison](../comparison.py) shows where each responsibility lives.
