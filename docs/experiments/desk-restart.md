@@ -21,6 +21,17 @@ The operator measured once before stopping the desk and once after restarting it
 
 The successful Windows run used Edge 157.0.4341.60, signed release 2 and VibeCheck commit `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24`. Both browser documents retained their time origin. The operator retained **Check output** and the peer retained **Diff**. Git reported a clean working tree after both measurements. [Experiment script](../../scripts/restart-desk.mjs)
 
+## Hosted browser results
+
+Firefox 153.0 and Playwright WebKit 26.5 each passed the same restart on Ubuntu 24.04.5 x64, Linux `7.0.0-1014-aws`, at factory revision `790fc47cfa4da5a4876dee8fda393f253948066d`. Each job first ran the ordinary approve, compare, restore and save scenario, then started a fresh two-tab desk for the process restart. [GitHub Actions run](https://github.com/marioG1025/morph-factory/actions/runs/44463017642)
+
+| Engine | Both documents and peer selection retained | Peer reads for prior / new report | Peer comparison POSTs | Evidence |
+| --- | --- | --- | ---: | --- |
+| Firefox 153.0 | Yes | 0 / 1 | 0 | [Firefox job](https://github.com/marioG1025/morph-factory/actions/runs/44463017642/job/135354085087) |
+| Playwright WebKit 26.5 | Yes | 0 / 1 | 0 | [WebKit job](https://github.com/marioG1025/morph-factory/actions/runs/44463017642/job/135354084637) |
+
+Both logs record exit of the original Python and Node processes, generation `1` before and after restart, the prior run in the full snapshot and the new run in the delta. Each peer rendered four fixed cases and two unchanged controls. Both product checkouts ended clean.
+
 ## Reproduce
 
 Set up the [browser dependencies](../../tests/browser/README.md), then run this command from the factory root.

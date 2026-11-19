@@ -8,13 +8,21 @@ permissions:
 
 jobs:
   open-release:
-    name: First launch on ${{ matrix.os }}
+    name: First launch on ${{ matrix.os }} with ${{ matrix.engine }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, ubuntu-24.04, windows-latest]
+        include:
+          - os: macos-15
+            engine: webkit
+          - os: ubuntu-24.04
+            engine: firefox
+          - os: windows-latest
+            engine: chromium
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      MORPH_BROWSER_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -33,7 +41,7 @@ jobs:
         working-directory: tests/browser
         run: |
           npm ci --ignore-scripts
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps "$MORPH_BROWSER_ENGINE"
       - name: Launch, compare, save, restart and inspect the clean checkout
         timeout-minutes: 5
         shell: bash
