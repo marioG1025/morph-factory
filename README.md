@@ -43,7 +43,7 @@ Supply a check that works in a clean checkout of your project. On an empty desk,
 | Run a real product check | The approved layer invokes the remote compare operation. The Python desk checks the active grant and executes trusted commands against separate Git checkouts. |
 | Restore the old behavior | The operator publishes a newer signed version that references the original modules. The draft remains open. |
 
-The factory integrates LLP into its own Change review panel. The checkout under review can use its existing frontend and backend. Signing keys and active releases stay in checkout-specific local state. This version supports a single local operator. [Implementation and trust model](runtime/README.md)
+The factory integrates LLP into its own Change review panel. The checkout under review can use its existing frontend and backend. Signing keys and active releases stay in checkout-specific local state. This version supports a single local operator. [Integration report for LLP maintainers](docs/llp-integration.md) · [Implementation and trust model](runtime/README.md)
 
 ## Evidence and reproduction
 
