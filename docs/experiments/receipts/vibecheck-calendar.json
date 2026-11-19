@@ -1,0 +1,100 @@
+{
+  "format": "morph-factory/experiment-receipt-v1",
+  "capturedAt": "2026-11-19T03:45:40.160Z",
+  "signedRelease": {
+    "manifest": {
+      "llp": 1,
+      "app": "morph.factory.review",
+      "version": 2,
+      "layers": {
+        "review": "360131def246491798623dc6e773ff9c80bf625d55822b7bd75c67a0be6c8ed3",
+        "reviewService": "519e9701489a2fc64035f6422165580b16fe9ffa5ba8803b7e314792b7bde3bc"
+      },
+      "order": [
+        "review",
+        "reviewService"
+      ],
+      "hosts": {
+        "review": "client",
+        "reviewService": "server"
+      },
+      "keys": {
+        "review": {
+          "own": [
+            "review/"
+          ],
+          "read": [
+            "desk/"
+          ]
+        },
+        "reviewService": {
+          "own": [],
+          "read": []
+        }
+      },
+      "caps": {
+        "review": [
+          "deskAction",
+          "remote",
+          "compare"
+        ],
+        "reviewService": []
+      },
+      "overlap": 30000,
+      "x-morph-release": "compare"
+    },
+    "sig": "NyXkTxyQa54P2PJvZsEIs0rUrffeZZLYp5p5cjIgMjcvCyXZ3/6PUXjJYQTiA03uOdc8eUXvvHGRBo2Qs5aFdA==",
+    "publicKey": {
+      "key_ops": [
+        "verify"
+      ],
+      "ext": true,
+      "kty": "EC",
+      "x": "_GOU8UA-1pB7rt1weGhqdckrQz_yoY3BeaSpbOKaD5U",
+      "y": "M75MKxARxnMQH20orcigEJJSULnWDEYS1aLzEh2RQSI",
+      "crv": "P-256"
+    }
+  },
+  "serverRehearsal": {
+    "app": "morph.factory.review",
+    "manifestDigest": "5d6c6af849393f218eb254b114c354070da57d08990646884c0c2b0cf8d546bc",
+    "baseVersion": 1,
+    "version": 2,
+    "release": "compare",
+    "ok": true,
+    "checks": [
+      {
+        "operation": "release",
+        "expected": "compare",
+        "actual": "compare",
+        "ok": true
+      },
+      {
+        "operation": "compare",
+        "expected": "allowed",
+        "actual": "allowed",
+        "ok": true
+      }
+    ],
+    "elapsedMs": 73,
+    "atUtc": "2026-11-19T03:45:37.373Z",
+    "sig": "HQZUe/t1S1N8iLcTlXhC0vFQq1o8rOqQb2Nw4ngjx6RRUmPlUizQo3MSTwRRI3ctTWDnYGJAoJfspVB59Ng1fQ=="
+  },
+  "comparison": {
+    "recordedAt": "2026-11-19T03:45:39.842519+00:00",
+    "base": "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24",
+    "patchDigest": "880b40e53d1be903b5c6f7a0665b2e3bd330cc1c3197d142e4a8c0e0c0f67877",
+    "candidateTree": "7bb71ffcea84f90271e5120e1b71003a64d7d214",
+    "releaseVersion": 2,
+    "original": "failed",
+    "candidate": "passed",
+    "counts": {
+      "fixed": 4,
+      "regressed": 0,
+      "unchanged": 2,
+      "added": 0,
+      "removed": 0,
+      "inconclusive": 0
+    }
+  }
+}

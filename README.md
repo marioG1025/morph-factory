@@ -1,64 +1,58 @@
 # Morph Factory
 
-Morph Factory turns a product idea or source finding into a patch you can inspect, test and keep on a Git review branch. It runs on your computer. The VibeCheck case file includes two independently verified product changes. The Live lab runs a signed WebAssembly update and a recovery in your browser.
+[![Factory checks](https://github.com/marioG1025/morph-factory/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/marioG1025/morph-factory/actions/workflows/check.yml) [![License](https://img.shields.io/badge/license-Apache_2.0-blue)](LICENSE)
 
-## Open the VibeCheck desk
+A local review desk for turning a product idea or a bug into a tested Git change. Open a draft, inspect its patch, and run the same check against the original and candidate. Save the changes you want on a review branch.
 
-Install Python 3.11 or later, Git, and Node with npm. On Windows, double-click **Open VibeCheck.cmd**. On other platforms, run the following from this folder.
+**The desk can change while you’re using it.** Approve **Compare results** and the server enables a new operation. The matching control appears in the draft you already have open. Your selected tab, patch, and browser document survive the update. This is the first factory feature built on Nikhil Ajay Kadalge’s [Live Layer Protocol](https://github.com/nik190799/live-layer-protocol).
+
+![An open VibeCheck draft retains its Check output tab as Compare results arrives. Four date cases turn from failed to passed.](docs/media/live-review.gif)
+
+## Try it on a real product
+
+You need Python 3.11+, Git, Node.js 22+ and npm. On Windows, `python` or `py -3` can stand in for `python3`.
 
 ```sh
+git clone https://github.com/marioG1025/morph-factory.git
+cd morph-factory
 python3 vibecheck.py
 ```
 
-The first run downloads the public VibeCheck repository into the application's local state directory and checks out commit `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24`. The desk opens at [localhost:8765](http://127.0.0.1:8765/). Keep the process running while using it. A different port can be set with `--port 8766`.
+The launcher prepares the pinned public VibeCheck checkout, opens a calendar-date patch and starts the desk on loopback. First use requires internet for the product checkout and the locked WebSocket dependency. The demo works without an AI subscription, API keys or Spotify credentials. [Open the local desk](http://127.0.0.1:8765/)
 
-1. Open **VibeCheck case file** to see the original and corrected concert dates. The example uses a fixture event on May 16 and the America/Chicago time zone.
-2. Open the prepared calendar patch on the factory floor. Run its checks and inspect the diff. **Save review branch** creates a real Git commit on a new local branch. Your current branch and its working files stay in place.
-3. Try the independent Vite build repair in the case file. Its verification installs VibeCheck's frontend dependencies in a temporary checkout and runs the product's production build. The date repair uses a focused six-case probe.
-4. In **Live lab**, type an unfinished note, release version 2, then rehearse a failed edit. The host checks the queue and reports recovery. The lab tab runs the upstream task layers. VibeCheck uses the normal Git review path.
+1. In **Change review**, select **Check output**. For a second view of the release, open the desk in another tab and select **Diff** there.
+2. Click **Rehearse**. The factory tries the candidate on copies of the active browser and server state. Click **Approve Compare results**. Both open tabs gain the action and keep their own selection.
+3. Click **Run comparison** on the draft. Four date-only concert cases change from failed to passed. Two timestamp controls pass on both sides. Expand **Original output** or **Patched output** to inspect what each checkout returned.
+4. Open **Release details → Download experiment receipt**, or click **Restore original review** to withdraw the capability from the open desk. **Run checks** and **Save review branch** are separate, explicit steps for keeping the product patch.
 
-## Open your own product
+## Bring your own repository
 
-Use a local checkout with at least one commit. Examples below show PowerShell.
-
-```powershell
-python server.py --repo "C:\projects\my-product"
+```sh
+python3 server.py --repo /path/to/your-product --check python -m unittest discover -s tests
 ```
 
-Open the printed address and choose **Scan only**. The scanner reads committed source at HEAD. Its built-in rules identify a small set of setup and documentation issues, and surface maintainer notes. **Add your patch** accepts a unified Git diff. **Watch for new commits** checks the checkout for changes while the tab is open. The experiment history keeps the last 40 checks, saved branches and cleared drafts for that checkout.
+Supply a check that works in a clean checkout of your project. **Scan only** reads committed source. **Add your patch** imports a Git diff. **Propose an idea** uses a signed-in Codex CLI to prepare a draft. The factory captures the base commit, patch digest and verification result before saving a local branch. Publishing a GitHub draft PR is a separate command. Project checks run with your OS account’s permissions. [Operator guide](docs/operator-guide.md)
 
-To include your project's own checks, pass a trusted command as the last option. It runs from a fresh temporary checkout with the patch applied. Use a command that can prepare its dependencies there. For example, a Python repository with standard-library tests can use:
+## What LLP does here
 
-```powershell
-python server.py --repo "C:\projects\my-product" --check python -m unittest discover
-```
+| During a release | Implementation |
+| --- | --- |
+| Decide which behavior travels together | A signed manifest names the client `review` module and server `reviewService` module by SHA-256. |
+| Test the proposed change | A shadow browser host preserves the draft and pane. A shadow server host exercises the release and compare operations. Approval binds to the digest of the complete candidate manifest. |
+| Update the open desk | The LLP server installs the server module, persists the release and offers it over WebSocket. Each connected client verifies the signature, loads its Wasm, renders, and acknowledges the version. |
+| Run a real product check | The approved layer invokes the remote compare operation. The Python desk checks the active grant and executes trusted commands against separate Git checkouts. |
+| Restore the old behavior | The operator publishes a newer signed version that references the original modules. The draft remains open. |
 
-The desk reports exactly what ran. Without a project check, it validates patch application, whitespace and supported file types. It keeps the receipt tied to the base commit and exact diff. Restarting the server requires running verification again before saving an uncommitted proposal. Temporary checkouts isolate Git changes. Project commands execute with your OS account's permissions, so select commands and repositories you trust.
+The factory integrates LLP into its own Change review panel. The checkout under review can use its existing frontend and backend. Signing keys and active releases stay in checkout-specific local state. This version supports a single local operator. [Implementation and trust model](runtime/README.md)
 
-## Ask for an AI proposal
+## Evidence and reproduction
 
-Install and sign in to the Codex CLI and make `codex` available on your PATH. Use **Propose an idea** on an empty desk. Give it a concrete product behavior to change and optionally attach a tracked source file. The model can read a clean checkout. The change comes back as a draft. You can also use the command line while the desk is running:
+| What to inspect | Where to go |
+| --- | --- |
+| Product bugs, competing workflows and pilot criteria | [Product research](docs/research.pdf) |
+| Tested VibeCheck revision, before/after results, and downloadable example | [Experiment notebook](docs/experiments/README.md) |
+| Independent JS/Go host parity across approval and restore | [Six reproducible checkpoints](docs/experiments/go-host.md) |
+| Exact LLP revision, local integration changes and license | [Upstream provenance](THIRD_PARTY.md) |
+| Change the review layer or add your own tests | [Layer source and build](layers/review/README.md) · [Contributing](CONTRIBUTING.md) |
 
-```powershell
-python propose.py --idea "Add a Clear search button when no shows match" --file Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
-```
-
-A model run can return no supported change. Automatic scan rules, manual patch review, the VibeCheck examples and the LLP lab work independently of model access.
-
-## Publish a reviewed change
-
-Saving a branch is local. To preview a GitHub draft PR, use the command shown after saving a review branch. Add `--publish` to push that branch and open the draft PR using authenticated Git and GitHub CLI access to the repository.
-
-```powershell
-python publish_review.py --repo "C:\projects\my-product" --branch "morph/your-review-branch"
-```
-
-The helper supports github.com origins. The GitHub publication path was tested through its preview and local checks. Running with `--publish` performs the external operation. Merging and deployment use the repository's usual process.
-
-## Implementation and evidence
-
-The server uses Python's standard library. One server instance owns each checkout's local draft. Set `--state-dir` to choose a different location. The default uses LocalAppData on Windows and XDG state on Unix. Use localhost to access this desk.
-
-The browser lab bundles the [LLP reference host and precompiled task examples](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96), released under the [Apache 2.0 license](ui/lab/LICENSE.txt). The additional version 2 fault rehearsal derives from the upstream version 2 layer. Its source is included beside the compiled layer. A new publisher key is generated for each browser session.
-
-VibeCheck case evidence comes from [the tested VibeCheck revision](https://github.com/marioG1025/VibeCheck/tree/6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24). The original calendar probe failed four of six cases. The patch passed all six, including both timestamp controls. The original frontend production build failed with TS2339. Applying the separate type declaration patch allowed the build to complete. The browser checks exercised list and detail navigation with a fixture API. Live SILO and Spotify services were outside these checks.
+Morph Factory is an independent experiment. The factory is published under the [Apache License 2.0](LICENSE). The LLP reference host, SDK and example layers retain their upstream attribution.
