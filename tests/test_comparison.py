@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -102,6 +103,26 @@ sys.exit(1)
         self.assertEqual(result["candidate"]["failed"], 1)
         self.assertEqual(result["candidate"]["status"], "failed")
         self.assertIn("Check completion", [c["name"] for c in result["candidate"]["cases"]])
+
+    def test_durable_comparison_survives_an_unavailable_notification(self):
+        from server import Desk
+        state = Path(self.temp.name) / "desk"
+        command = [sys.executable, "-c", "print('check complete')"]
+        desk = Desk(self.repo, state, command)
+        desk.act("scan", {})
+        desk.act("draft", {"title": "Change day", "diff": self.diff})
+        persisted = []
+
+        def fail_notification(result):
+            persisted.append(json.loads(desk.file.read_text(encoding="utf-8"))["draft"]["comparison"])
+            raise OSError("Test relay is offline")
+
+        with patch.object(desk.live, "require_compare", return_value={"version": 2}), \
+             patch.object(desk.live, "comparison_saved", fail_notification), self.assertLogs("morph", "ERROR"):
+            result = desk.compare({"base": self.base, "digest": draft_digest(self.diff)})
+        self.assertEqual(persisted, [result])
+        self.assertRegex(result["run"], "^[0-9a-f]{32}$")
+        self.assertEqual(Desk(self.repo, state, command).state()["draft"]["comparison"], result)
 
 
 @unittest.skipUnless(os.getenv("MORPH_VIBECHECK_REPO"), "Set MORPH_VIBECHECK_REPO to run the pinned product checks.")

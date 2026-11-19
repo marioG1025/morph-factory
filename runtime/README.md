@@ -19,6 +19,12 @@ The factory uses [Nikhil Ajay Kadalge's Live Layer Protocol](https://github.com/
 
 The approval route uses an in-process call to the upstream server host's `offer` entry point. The downstream server-to-browser link uses the upstream WebSocket protocol. Signing and serving run in the same local Node process for this experiment. The Python app and the user's target repository continue to use normal application code.
 
+## How an open peer learns that a comparison finished
+
+The Python desk saves the report before asking its checkout's live host to notify other tabs. The host writes one key, `shared/review/comparison`, and uses the reference host's `persist` and `flush` methods. The wire value is a short JSON string containing an opaque run ID, the Git base, the SHA-256 of the patch, and the approving release version. Subscribed clients receive an LLP `shared` delta. On reconnect, the server sends its latest marker in the full shared snapshot. The marker identifies the report available through the existing desk state. Source, paths, logs and case results stay in the local report. [Reference host's shared cache](https://github.com/nik190799/live-layer-protocol/blob/d14ebf9f8d17a45a3619231d4a9c63c00845bf96/host/server-host.mjs#L646-L655)
+
+This uses the native client's read cache and leaves the signed guest binaries and their declared grants intact. The private stdio operation projects the four permitted fields and checks the live compare release before publishing. If delivery fails after a successful save, the initiating client still receives the report, and the existing HTTP state can recover it on reconnect. Repeated runs replace the same cache key. An older release's marker carries its original version. The wire regression covers a subscribed peer, a different watch prefix, repeated runs of the same patch, and a client joining after a server restart. [Wire regression](tests/review-host.test.mjs)
+
 ## Run and reproduce
 
 Node 22 or later is required. The Python launcher checks `MORPH_NODE`, the normal executable path, and the bundled Codex runtime when available. The first use installs the locked `ws` dependency with npm lifecycle scripts disabled. To prepare dependencies explicitly, from the repository root run:

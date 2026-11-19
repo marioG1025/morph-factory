@@ -191,6 +191,23 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
       case "blob": return {data: Buffer.from(blob(request.hash)).toString("base64")};
       case "approve": return transition("compare", request);
       case "restore": return transition("review", request);
+      case "comparisonSaved": {
+        const {run, base, digest, releaseVersion} = request;
+        if (typeof run !== "string" || !/^[0-9a-f]{32}$/.test(run) ||
+            typeof base !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(base) ||
+            typeof digest !== "string" || !/^[0-9a-f]{64}$/.test(digest)) {
+          throw Error("Comparison notice needs a run ID, Git base and patch digest.");
+        }
+        return lane.exclusive(() => {
+          if (lane.version !== releaseVersion || lane.manifest["x-morph-release"] !== "compare") return {published: false};
+          // The input comes from local stdio after the authoritative Python record is durable.
+          const notice = JSON.stringify({run, base, digest, releaseVersion});
+          tenant.kv.set("shared/review/comparison", notice);
+          runtime.persist(tenant);
+          runtime.flush(tenant);
+          return {published: true};
+        });
+      }
       case "requireCompare": {
         // Use the upstream server worker's current version, including when an old tab is in overlap.
         const value = await lane.invoke("reviewService", "compare", "local-operator", "", lane.version);

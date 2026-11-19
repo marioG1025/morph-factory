@@ -147,6 +147,10 @@ class LiveRelease:
     def require_compare(self):
         return self.command("requireCompare")
 
+    def comparison_saved(self, result):
+        return self.command("comparisonSaved", run=result["run"], base=result["base"],
+                            digest=result["digest"], releaseVersion=result["releaseVersion"])
+
 
 def live_get(handler, path):
     if path.startswith("/vendor/llp/"):

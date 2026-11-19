@@ -17,10 +17,10 @@ async function until(condition, description) {
   }
 }
 
-function openClient(session) {
+function openClient(session, watch) {
   const host = new LiveHost({app: session.app, trustedKeys: [session.publicKey]});
   host.kv.set("desk/title", "Keep concert dates on the advertised day");
-  const link = connectServer(host, session.endpoint, {app: session.app, token: session.token,
+  const link = connectServer(host, session.endpoint, {app: session.app, token: session.token, watch,
     retryMs: 30, queueMs: 4000, upgradeWaitMs: 2000});
   return {host, link, close: () => { link.close(); host.close(); }};
 }
@@ -211,4 +211,48 @@ test("a fresh client can fetch the signed module after a recoverable local blob 
     client.close();
     clients.pop();
   }
+});
+
+test("a completed comparison reaches only subscribed peers and replays the latest marker on reconnect", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "morph-shared-comparison-"));
+  const key = "shared/review/comparison";
+  const clients = [];
+  let server = await startHost(directory);
+  t.after(async () => {
+    for (const client of clients) client.close();
+    server.close();
+    await rm(directory, {recursive: true, force: true});
+  });
+  const first = server.session();
+  const watching = openClient(first, [key]);
+  const other = openClient(first, ["shared/other/"]);
+  clients.push(watching, other);
+  await until(() => server.status().acknowledged === 2, "both clients' initial release");
+  const proposal = await server.command({op: "candidate"});
+  const approved = await server.command({op: "approve", expectedVersion: first.version, expectedDigest: proposal.digest});
+  const notice = {run: "1".repeat(32), base: "a".repeat(40), digest: "b".repeat(64), releaseVersion: approved.version};
+  await until(() => server.status().acknowledged === 2, "both clients' compare release");
+  await assert.rejects(server.command({op: "comparisonSaved", ...notice, digest: "invalid"}), /patch digest/);
+  assert.deepEqual(await server.command({op: "comparisonSaved", ...notice, output: "excluded output"}), {published: true});
+  await until(() => Boolean(watching.host.kv.get(key)), "the subscribed peer's native shared cache");
+  assert.deepEqual(JSON.parse(watching.host.kv.get(key)), notice);
+  assert.equal(other.host.kv.has(key), false);
+  const delta = watching.link.received.map(raw => JSON.parse(raw)).find(m => m.t === "shared" && !m.full);
+  assert.deepEqual(delta.set, [[key, JSON.stringify(notice)]]);
+
+  const latest = {...notice, run: "2".repeat(32)};
+  await server.command({op: "comparisonSaved", ...latest});
+  await until(() => watching.host.kv.get(key) === JSON.stringify(latest), "a second comparison of the same patch");
+  for (const client of clients.splice(0)) client.close();
+  server.close();
+  server = await startHost(directory);
+  const fresh = openClient(server.session(), [key]);
+  clients.push(fresh);
+  await until(() => server.status().acknowledged === 1, "a fresh peer after restarting from disk");
+  const full = fresh.link.received.map(raw => JSON.parse(raw)).find(m => m.t === "shared" && m.full);
+  assert.deepEqual(full.set, [[key, JSON.stringify(latest)]]);
+  assert.deepEqual(JSON.parse(fresh.host.kv.get(key)), latest);
+  await server.command({op: "restore", expectedVersion: approved.version});
+  assert.deepEqual(await server.command({op: "comparisonSaved", ...notice}), {published: false});
+  assert.equal(server.runtime.tenant(first.app).kv.get(key), JSON.stringify(latest));
 });

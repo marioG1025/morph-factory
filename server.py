@@ -6,6 +6,7 @@ import json
 import logging
 import mimetypes
 import os
+import secrets
 from pathlib import Path, PureWindowsPath
 import shutil
 import subprocess
@@ -144,8 +145,14 @@ class Desk:
                 if version != active_version or generation != self.draft_generation:
                     raise ComparisonConflict("The draft or live release changed during comparison. Run the current draft again.")
                 result["releaseVersion"] = version
+                result["run"] = secrets.token_hex(16)
                 self.persist({**current, "comparison": result}, "Compared baseline and candidate")
-                return result
+            try:
+                self.live.comparison_saved(result)
+            except Exception:
+                # A peer can always retrieve the committed report through the normal desk state.
+                LOGGER.exception("Comparison saved, but the live notification could not be delivered")
+            return result
         finally:
             with self.lock:
                 self.comparing = False
