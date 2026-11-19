@@ -1,0 +1,38 @@
+diff --git a/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx b/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
+index 88d0bad..090b821 100644
+--- a/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
++++ b/Music_Show_Helper/Frontend/src/pages/EventDetailPage.tsx
+@@ -50,12 +50,14 @@ function EventDetailPage() {
+ 
+   const formatDate = (dateString: string) => {
+     try {
++      const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+       const date = new Date(dateString);
+       return date.toLocaleDateString('en-US', {
+         weekday: 'long',
+         year: 'numeric',
+         month: 'long',
+         day: 'numeric',
++        timeZone: isDateOnly ? 'UTC' : undefined,
+       });
+     } catch {
+       return dateString;
+diff --git a/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx b/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
+index 8e7908d..e6c240a 100644
+--- a/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
++++ b/Music_Show_Helper/Frontend/src/pages/EventsPage.tsx
+@@ -44,12 +44,14 @@ function EventsPage() {
+ 
+   const formatDate = (dateString: string) => {
+     try {
++      const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+       const date = new Date(dateString);
+       return date.toLocaleDateString('en-US', {
+         weekday: 'short',
+         year: 'numeric',
+         month: 'short',
+         day: 'numeric',
++        timeZone: isDateOnly ? 'UTC' : undefined,
+       });
+     } catch {
+       return dateString;

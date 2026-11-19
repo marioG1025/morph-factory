@@ -35,6 +35,11 @@ async function inspectFailure(t, desk, expectName, expectedFailures, removePrepa
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.getByRole("button", {name:"Prepare proposal"}).first().click();
   const idea = page.getByRole("textbox", {name:"What should improve?"});
+  const attachments = page.getByRole("textbox", {name:"Tracked files for context (optional)"});
+  await attachments.fill("one.py\ntwo.py\nthree.py\nfour.py\nfive.py");
+  assert.equal(await attachments.evaluate(el => el.validity.valid), false);
+  await attachments.fill("one.py\ntwo.py");
+  assert.equal(await attachments.evaluate(el => el.validity.valid), true);
   const original = await idea.inputValue();
   assert.match(original, expectName);
   assert.ok(original.includes(state.headCheck.base));

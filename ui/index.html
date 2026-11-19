@@ -111,9 +111,9 @@
       <div class="dialog-head"><div><p class="eyebrow">Codex</p><h2 id="agent-heading">Propose an idea</h2></div><button class="close-button" type="button" id="agent-close" aria-label="Close">×</button></div>
       <label for="agent-idea">What should improve?</label>
       <textarea id="agent-idea" required maxlength="2000" rows="3" placeholder="When a search finds no shows, give the listener a way to clear it."></textarea>
-      <label for="agent-file">Tracked file for context (optional)</label>
-      <input id="agent-file" maxlength="500" spellcheck="false" placeholder="src/pages/EventsPage.tsx">
-      <p class="footnote">Your signed-in Codex CLI sends the idea and selected file to the model. It can read committed source in a temporary checkout to prepare a draft.</p>
+      <label for="agent-file">Tracked files for context (optional)</label>
+      <textarea id="agent-file" rows="2" spellcheck="false" aria-describedby="agent-file-hint" placeholder="src/pages/EventsPage.tsx"></textarea>
+      <p id="agent-file-hint" class="footnote">Enter up to four repository-relative paths, one per line. Your signed-in Codex CLI sends the idea and selected files to the model. It can read committed source in a temporary checkout.</p>
       <p role="status" aria-live="polite" id="agent-status" class="footnote"></p>
       <button class="button secondary" type="button" id="agent-copy" hidden>Copy proposal text</button>
       <span id="agent-copy-status" class="footnote" role="status"></span>

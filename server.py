@@ -6,7 +6,7 @@ import json
 import logging
 import mimetypes
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import shutil
 import subprocess
 import tempfile
@@ -62,6 +62,28 @@ def open_desk(repo, state_dir, command):
             yield desk
         finally:
             desk.live.close()
+
+
+def proposal_files(payload):
+    if "files" in payload:
+        if payload.get("file"):
+            raise ValueError("Use either files or the older single file field.")
+        paths = payload["files"]
+    else:
+        legacy = payload.get("file", "")
+        paths = [] if isinstance(legacy, str) and not legacy.strip() else [legacy]
+    if not isinstance(paths, list) or len(paths) > 4:
+        raise ValueError("Attach up to four tracked file paths, one per line.")
+    selected = []
+    for path in paths:
+        if not isinstance(path, str) or not path.strip() or len(path) > 500 or any(c in path for c in "\x00\r\n"):
+            raise ValueError("Each attachment needs a repository-relative path of 1–500 characters.")
+        path = path.strip().replace("\\", "/")
+        if path.startswith("/") or PureWindowsPath(path).drive or ".." in Path(path).parts:
+            raise ValueError("Select tracked files within this repository.")
+        if path not in selected:
+            selected.append(path)
+    return selected
 
 
 class Desk:
@@ -166,21 +188,16 @@ class Desk:
             if "checkSource" in payload:
                 self.require_check_source(source)
             idea = payload.get("idea")
-            path = payload.get("file", "")
             if not isinstance(idea, str) or not 1 <= len(idea.strip()) <= 2000:
                 raise ValueError("Supply an idea of 1–2,000 characters.")
-            if not isinstance(path, str) or len(path) > 500:
-                raise ValueError("Supply one repository-relative file path.")
-            path = path.strip()
-            if path and (Path(path).is_absolute() or ".." in Path(path).parts or "\x00" in path):
-                raise ValueError("Select a tracked file within this repository.")
+            files = proposal_files(payload)
             cli = shutil.which("codex")
             if not cli:
                 raise ValueError("Install and sign in to the Codex CLI, then restart this desk.")
             self.agent = {"status": "running", "message": "Codex is preparing a patch in a clean checkout."}
             def work():
                 try:
-                    propose(port, idea, [cli], [path] if path else [], check_source=source)
+                    propose(port, idea, [cli], files, check_source=source)
                     state = {"status": "ready", "message": "Your draft is ready. Review the diff and run checks."}
                 except (ValueError, OSError, subprocess.SubprocessError) as exc:
                     state = {"status": "failed", "message": str(exc)}

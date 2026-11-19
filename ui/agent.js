@@ -5,6 +5,15 @@
   let inProgress = false;
   let checkSource = null;
 
+  function selectedFiles() {
+    return control("file").value.split(/\r?\n/).map(path => path.trim()).filter(Boolean);
+  }
+  control("file").addEventListener("input", () => {
+    const paths = selectedFiles();
+    control("file").setCustomValidity(paths.length > 4 ? "Attach up to four files." :
+      paths.some(path => path.length > 500) ? "Use paths of at most 500 characters." : "");
+  });
+
   async function request(route, payload) {
     const options = payload ? {
       method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)
@@ -49,6 +58,7 @@
     if (source || checkSource) {
       control("idea").value = idea || "";
       control("file").value = "";
+      control("file").setCustomValidity("");
     }
     checkSource = source;
     control("copy").hidden = !source;
@@ -76,7 +86,7 @@
     event.preventDefault();
     control("submit").disabled = true;
     try {
-      const proposal = {idea: control("idea").value.trim(), file: control("file").value.trim()};
+      const proposal = {idea: control("idea").value.trim(), files: selectedFiles()};
       if (checkSource) proposal.checkSource = checkSource;
       show(await request("", proposal));
     } catch (error) {

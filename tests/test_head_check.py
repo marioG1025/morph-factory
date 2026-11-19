@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from comparison import ComparisonConflict
 from head_check import check_head
-from server import Desk, RequestHandler
+from server import Desk, RequestHandler, proposal_files
 
 
 class HeadIntake(unittest.TestCase):
@@ -129,13 +129,15 @@ class HeadIntake(unittest.TestCase):
         try:
             with patch("server.shutil.which", return_value=sys.executable), patch("propose.generate", return_value=change) as generate:
                 idea = "Include the delivery fee in the price."
-                result = self.desk.start_agent(httpd.server_port, {"idea": idea, "checkSource": source})
+                files = ["test_price.py", "pricing.py"]
+                result = self.desk.start_agent(httpd.server_port, {"idea": idea, "files": files, "checkSource": source})
                 self.assertEqual(result["status"], "running")
                 deadline = time.monotonic() + 20
                 while self.desk.agent_status()["status"] == "running" and time.monotonic() < deadline:
                     time.sleep(0.05)
                 self.assertEqual(self.desk.agent["status"], "ready", self.desk.agent["message"])
                 self.assertEqual(generate.call_args.args[3], idea)
+                self.assertEqual(generate.call_args.args[4], files)
                 self.assertEqual(self.desk.draft["base"], self.base)
                 self.assertIsNone(self.desk.draft["review"])
                 self.assertIsNone(self.desk.draft["verification"])
@@ -145,3 +147,14 @@ class HeadIntake(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
             thread.join(timeout=3)
+
+    def test_legacy_and_multiple_attachment_forms(self):
+        self.assertEqual(proposal_files({"file": "pricing.py"}), ["pricing.py"])
+        self.assertEqual(proposal_files({"file": " "}), [])
+        self.assertEqual(proposal_files({"files": ["a.py", "nested\\b.py", "c.py", "d.py"]}),
+                         ["a.py", "nested/b.py", "c.py", "d.py"])
+        for value in ({"files": ["a"] * 5}, {"files": "../outside"}, {"files": ["a", None]},
+                      {"files": ["a\nb"]}, {"files": ["C:/outside"]}, {"files": ["sub/../outside"]},
+                      {"files": ["a"], "file": "b"}, {"files": [""]}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                proposal_files(value)
