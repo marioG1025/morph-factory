@@ -54,6 +54,8 @@ def main():
             server.serve_forever()
         except KeyboardInterrupt:
             pass
+        finally:
+            desk.live.close()
 
 if __name__ == "__main__":
     try:

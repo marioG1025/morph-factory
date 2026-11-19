@@ -19,6 +19,11 @@ for (const [index, page] of ['EventsPage', 'EventDetailPage'].entries()) {
     const actual = format(input);
     const ok = actual === expected[index];
     console.log((ok ? 'PASS' : 'FAIL') + ' ' + page + '  ' + input + '  =>  ' + actual + (ok ? '' : '  (expected ' + expected[index] + ')'));
+    if (process.env.MORPH_CASE_REPORT) {
+      const result = {id: page + ':' + input, name: page + ' · ' + input,
+        status: ok ? 'passed' : 'failed', detail: actual + ' (expected ' + expected[index] + ')'};
+      fs.appendFileSync(process.env.MORPH_CASE_REPORT, JSON.stringify(result) + '\n');
+    }
     if (!ok) failed++;
   }
 }

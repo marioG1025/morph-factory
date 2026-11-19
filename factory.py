@@ -28,7 +28,9 @@ def _run(args, cwd, data=None, env=None, timeout=120):
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ValueError(str(exc)) from exc
     if run.returncode:
-        detail = (run.stderr or run.stdout).decode("utf-8", "replace").strip()
+        # Test runners often print the failing cases to stdout and a wrapper error
+        # to stderr. Keep both so the reviewer can see which behavior failed.
+        detail = b"\n".join(part for part in (run.stdout, run.stderr) if part).decode("utf-8", "replace").strip()
         raise ValueError(detail[-4000:] or f"{args[0]} exited {run.returncode}")
     return run.stdout
 

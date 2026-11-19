@@ -16,7 +16,9 @@ from datetime import datetime, timezone
 from urllib.parse import unquote, urlsplit
 
 from factory import create_review_branch, inspect_repo, verify_proposal
+from comparison import ComparisonConflict, compare_proposal, draft_digest
 from propose import propose
+from live_release import LiveRelease, live_get, live_post
 
 
 UI = Path(__file__).resolve().parent / "ui"
@@ -50,18 +52,56 @@ class Desk:
         self.agent = {"status": "idle", "message": ""}
         repo_hash = hashlib.sha256(os.path.normcase(self.repo).encode()).hexdigest()
         self.file = state_dir / f"{repo_hash}.json"
+        self.live = LiveRelease(state_dir / "llp" / repo_hash)
         self.scan = None
         self.draft = None
+        self.verifying = False
+        self.draft_generation = 0
         self.history = []
+        self.comparing = False
         if self.file.exists():
             saved = json.loads(self.file.read_text(encoding="utf-8"))
             if saved.get("version") != 1 or saved.get("repo") != self.repo:
                 raise ValueError(f"Unexpected saved draft format in {self.file}")
             self.draft = saved.get("draft")
             self.history = saved.get("history", [])
+            if self.draft and saved.get("check") != self.command:
+                self.draft.pop("comparison", None)
             # Receipts are signed in memory by this instance of the verifier.
             if self.draft and not self.draft.get("review"):
                 self.draft["verification"] = None
+
+    def _require_comparable_draft(self, payload):
+        try:
+            release = self.live.require_compare()
+        except ValueError as exc:
+            raise ComparisonConflict(str(exc)) from exc
+        draft = self.draft
+        if (not draft or payload.get("base") != draft["base"] or
+                payload.get("digest") != draft_digest(draft["diff"]) or
+                self.head()["head"] != draft["base"]):
+            raise ComparisonConflict("The draft or checkout changed. Reopen the current draft before comparing.")
+        return draft, release["version"]
+
+    def compare(self, payload):
+        with self.lock:
+            draft, version = self._require_comparable_draft(payload)
+            generation = self.draft_generation
+            if self.comparing:
+                raise ComparisonConflict("A comparison is already running for this desk.")
+            self.comparing = True
+        try:
+            result = compare_proposal(self.repo, draft["base"], draft["diff"], self.command)
+            with self.lock:
+                current, active_version = self._require_comparable_draft(payload)
+                if version != active_version or generation != self.draft_generation:
+                    raise ComparisonConflict("The draft or live release changed during comparison. Run the current draft again.")
+                result["releaseVersion"] = version
+                self.persist({**current, "comparison": result}, "Compared baseline and candidate")
+                return result
+        finally:
+            with self.lock:
+                self.comparing = False
 
     def start_agent(self, port, payload):
         with self.lock:
@@ -169,15 +209,20 @@ class Desk:
         if not title or len(title) > 200 or not diff.strip() or "\x00" in diff:
             raise ValueError("Supply a title of 1–200 characters and a nonempty text patch.")
         self.persist({"title": title, "base": current, "diff": diff, "verification": None, "review": None})
+        self.draft_generation += 1
 
     def act(self, action, payload):
+        if action == "verify":
+            return self.verify_current(payload)
         with self.lock:
             if action == "scan":
                 self.scan = inspect_repo(self.repo)
             elif action == "draft":
                 self.make_draft(payload)
             elif action == "discard":
+                self.check_expected_patch(payload)
                 self.persist(None, "Cleared from desk")
+                self.draft_generation += 1
             elif not self.draft:
                 raise ValueError("Create a proposal first.")
             elif self.draft.get("review"):
@@ -186,12 +231,6 @@ class Desk:
                 raise ValueError("This proposal already has a review branch.")
             elif self.head()["head"] != self.draft["base"]:
                 raise ValueError("The draft targets an older commit. Scan again and prepare a new draft.")
-            elif action == "verify":
-                # Invalidate old evidence even when a new run aborts partway through.
-                self.persist({**self.draft, "verification": None})
-                receipt = verify_proposal(self.repo, self.draft["base"], self.draft["diff"], self.command)
-                self.persist({**self.draft, "verification": receipt},
-                             "Checks passed" if receipt["ok"] else "Checks failed")
             elif action == "review":
                 receipt = self.draft.get("verification")
                 if not receipt or not receipt.get("ok"):
@@ -204,6 +243,40 @@ class Desk:
                 self.draft = {**self.draft, "review": review}
                 self.persist(self.draft, "Review branch created")
             return self.state()
+
+    def check_expected_patch(self, payload):
+        if "expectedPatch" not in payload:
+            return
+        identity = None if self.draft is None else {
+            "base": self.draft["base"], "digest": hashlib.sha256(self.draft["diff"].encode()).hexdigest()}
+        if payload["expectedPatch"] != identity:
+            raise ValueError("The open draft has changed. Refresh the desk and try again.")
+
+    def verify_current(self, payload):
+        with self.lock:
+            self.check_expected_patch(payload)
+            if self.verifying:
+                raise ValueError("A verification is already running for this checkout.")
+            if not self.draft or self.draft.get("review"):
+                raise ValueError("Choose an open draft to verify.")
+            if self.head()["head"] != self.draft["base"]:
+                raise ValueError("The draft targets an older commit. Scan and prepare a new draft.")
+            snapshot = {**self.draft, "verification": None}
+            self.persist(snapshot)
+            generation = self.draft_generation
+            self.verifying = True
+        try:
+            # Keep the desk responsive to a live release or another tab while a project builds.
+            receipt = verify_proposal(self.repo, snapshot["base"], snapshot["diff"], self.command)
+            with self.lock:
+                if self.draft_generation != generation:
+                    raise ValueError("This draft changed during verification. Its results were discarded.")
+                self.persist({**self.draft, "verification": receipt},
+                             "Checks passed" if receipt["ok"] else "Checks failed")
+                return self.state()
+        finally:
+            with self.lock:
+                self.verifying = False
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -237,6 +310,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         if not self.valid_host():
             return
         path = unquote(urlsplit(self.path).path)
+        if live_get(self, path):
+            return
         if path == "/api/agent/status":
             self.send_json(self.server.desk.agent_status())
             return
@@ -265,7 +340,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_json({"error": "Open the local desk to perform this action."}, 403)
             return
         route = urlsplit(self.path).path
-        if route not in {"/api/scan", "/api/draft", "/api/verify", "/api/review", "/api/discard", "/api/agent"}:
+        if route not in {"/api/scan", "/api/draft", "/api/verify", "/api/review", "/api/discard", "/api/agent",
+                         "/api/compare", "/api/live/approve", "/api/live/restore"}:
             self.send_json({"error": "Unknown action."}, 404)
             return
         if self.headers.get_content_type() != "application/json":
@@ -279,10 +355,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(size).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Expected a JSON object.")
+            if route.startswith("/api/live/"):
+                live_post(self, route, payload)
+                return
+            if route == "/api/compare":
+                self.send_json(self.server.desk.compare(payload))
+                return
             if route == "/api/agent":
                 self.send_json(self.server.desk.start_agent(self.server.server_port, payload), 202)
                 return
             self.send_json(self.server.desk.act(route[5:], payload))
+        except ComparisonConflict as exc:
+            self.send_json({"error": str(exc)}, 409)
         except (ValueError, OSError, subprocess.SubprocessError) as exc:
             self.send_json({"error": str(exc)}, 400)
         except Exception:
@@ -314,6 +398,7 @@ def main():
         pass
     finally:
         server.server_close()
+        desk.live.close()
 
 
 if __name__ == "__main__":

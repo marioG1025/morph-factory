@@ -14,12 +14,13 @@ function message(value, error = false) {
   notice.hidden = !value;
 }
 
-function showView(name) {
+function showView(name, notifyLayer = true) {
   view = name;
   byId("show-diff").setAttribute("aria-pressed", String(view === "diff"));
   byId("show-checks").setAttribute("aria-pressed", String(view === "checks"));
   byId("diff-view").hidden = view !== "diff";
   byId("checks-view").hidden = view !== "checks";
+  if (notifyLayer) window.dispatchEvent(new CustomEvent("morph:select-view", {detail: name}));
 }
 
 async function api(path, body) {
@@ -165,7 +166,10 @@ function render() {
   badge.className = "pill" + (stale || draft?.verification?.ok === false ? " bad" : verified || review ? " good" : "");
   renderFindings(scan);
   renderStages(scan, draft);
-  if (!draft) return;
+  if (!draft) {
+    window.dispatchEvent(new Event("morph:desk-updated"));
+    return;
+  }
   byId("draft-title").textContent = draft.title;
   renderDiff(draft);
   byId("checks-output").textContent = draft.verification ? [verified ? "PASS" : "FAIL", draft.verification.verification, draft.verification.output].filter(Boolean).join("\n\n") : "Run checks to capture verification output.";
@@ -185,10 +189,16 @@ function render() {
     byId("publish-command").textContent = "python publish_review.py --repo " + quote(repoPath) + " --branch " + quote(review.branch);
   }
   byId("action-hint").textContent = review ? "The branch is ready for local review." : stale ? "The repository has a newer commit. Rebase the patch and create a fresh draft." : verified ? "Save the tested commit on a local branch for review." : "Verification runs the configured project check against this patch.";
-  showView(view);
+  showView(view, false);
+  window.dispatchEvent(new Event("morph:desk-updated"));
 }
 
 async function update(action, body = {}) {
+  if (state?.draft && (action === "verify" || action === "discard")) {
+    const {base, diff} = state.draft;
+    const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(diff)));
+    body.expectedPatch = {base, digest: Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("")};
+  }
   state = await api(action, body);
   render();
 }
@@ -330,4 +340,15 @@ async function connect() {
   render();
 }
 window.addEventListener("morph:draft-ready", connect);
+// The shell owns Git state, large documents and approved side effects. The signed
+// review layer chooses what to render and asks for a narrow, named action.
+window.morphDesk = Object.freeze({
+  snapshot: () => ({state, pending, confirmDiscard, view}),
+  rememberView: name => showView(name, false),
+  action: name => {
+    const controls = {verify: "verify", save: "review", discard: "discard"};
+    const control = controls[name] && byId(controls[name]);
+    if (state?.draft && control && !control.disabled && !control.hidden) control.click();
+  }
+});
 connect();

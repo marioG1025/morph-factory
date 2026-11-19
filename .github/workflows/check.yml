@@ -27,5 +27,35 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
+      - name: Check out the pinned VibeCheck product
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: marioG1025/VibeCheck
+          ref: 6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24
+          path: .ci/VibeCheck
+          persist-credentials: false
+      - name: Install the reference host transport
+        run: npm ci --prefix runtime --omit=dev --ignore-scripts
       - name: Run repository tests
         run: python -m unittest discover -s tests -v
+        env:
+          MORPH_VIBECHECK_REPO: ${{ github.workspace }}/.ci/VibeCheck
+      - name: Test signed releases over a real socket
+        run: npm test --prefix runtime
+      - name: Rebuild all four signed-layer inputs
+        if: runner.os == 'Linux'
+        run: |
+          npm ci --prefix layers/review --ignore-scripts
+          npm run build --prefix layers/review
+          git diff --exit-code -- ui/layers runtime/layers
+      - name: Prepare Chromium
+        if: runner.os == 'Linux'
+        working-directory: tests/browser
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Exercise the open-draft release in two tabs
+        if: runner.os == 'Linux'
+        run: npm test --prefix tests/browser
+        env:
+          MORPH_VIBECHECK_REPO: ${{ github.workspace }}/.ci/VibeCheck

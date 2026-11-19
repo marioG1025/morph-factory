@@ -1,0 +1,14 @@
+{
+  "name": "morph-factory-review-layer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "assemblyscript": "0.28.20"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

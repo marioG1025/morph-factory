@@ -7,8 +7,10 @@
   <title>Factory floor · Morph Factory</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/layers/review.css">
   <script defer src="/app.js"></script>
   <script defer src="/agent.js"></script>
+  <script type="module" src="/layers/review-client.js"></script>
 </head>
 <body>
   <header class="masthead">
@@ -50,6 +52,17 @@
       </aside>
       <section class="panel change-card" id="change-panel">
         <header class="panel-head"><div class="panel-title"><span class="square-icon change-icon" aria-hidden="true"></span><h2>Change review</h2></div><span class="pill" id="draft-status">Waiting</span></header>
+        <section class="live-release" aria-label="Change review release">
+          <div class="release-line"><strong id="live-version">Connecting live layer…</strong><span id="live-connection" class="release-status"></span></div>
+          <p id="release-description">Connecting to the local release host.</p>
+          <div class="actions" id="release-actions" hidden>
+            <button class="button primary" id="approve-comparison">Approve Compare results</button>
+            <button class="button secondary" id="rehearse-comparison">Rehearse</button>
+            <button class="button secondary" id="restore-review" hidden>Restore original review</button>
+          </div>
+          <p id="release-feedback" role="status" aria-live="polite"></p>
+          <details id="release-record" hidden><summary>Release details</summary><ol id="release-log"></ol></details>
+        </section>
         <div id="empty-draft" class="empty-draft">
           <div class="patch-illustration" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
           <h3>No patch in review</h3><p id="draft-hint">Run the walkthrough to scan this repository and test an available patch. You decide whether to save the review branch.</p>
@@ -63,6 +76,7 @@
           <div class="review-result" id="review-result" hidden><p class="eyebrow">Local review branch</p><strong id="review-branch"></strong><p class="mono" id="review-commit"></p><details class="publish-hint"><summary>Publish a GitHub draft PR</summary><p>From the Morph Factory directory, preview the destination with this command. Add <code>--publish</code> to push the branch and open the draft PR.</p><code id="publish-command"></code></details></div>
           <div class="draft-controls"><div class="actions"><button class="button primary" id="verify">Run checks</button><button class="button primary" id="review" hidden>Save review branch</button><button class="button secondary" id="discard">Discard draft</button></div><p class="footnote" id="action-hint"></p></div>
         </div>
+        <div id="review-layer" aria-label="Live change review" hidden></div>
       </section>
     </div>
     <details class="panel history-card"><summary>Experiment history <span id="history-count"></span></summary><div id="history-records"></div></details>

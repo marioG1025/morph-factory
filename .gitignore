@@ -8,6 +8,7 @@ node_modules/
 *.log
 .morph/
 .morph-state/
+.ci/
 test-results/
 playwright-report/
 coverage/

@@ -1,0 +1,744 @@
+// Live Layer Protocol (LLP) v0 — host core.
+// Runs unchanged in browsers and in Node: only WebAssembly, WebCrypto, TextEncoder/Decoder.
+
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+export const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+export async function sha256(bytes) { return hex(await crypto.subtle.digest("SHA-256", bytes)); }
+
+// Canonical JSON: sorted keys, no whitespace — what gets signed.
+// This is RFC 8785 (JCS): keys sorted by UTF-16 code units, strings and numbers as JSON.stringify
+// writes them. Members whose value is undefined are left out, as JSON.stringify does. A string with
+// a lone surrogate has no canonical form (I-JSON, RFC 7493), so it throws and nothing that holds
+// one can be signed or verified.
+const LONE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+export function canonical(v) {
+  if (Array.isArray(v)) return "[" + v.map(canonical).join(",") + "]";
+  if (v && typeof v === "object") return "{" + Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => canonical(k) + ":" + canonical(v[k])).join(",") + "}";
+  if (typeof v === "string" && LONE.test(v)) throw new Error("canonical JSON: lone surrogate in a string");
+  return JSON.stringify(v);
+}
+export const b64 = {
+  enc: (bytes) => { let s = ""; const u = new Uint8Array(bytes); for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); },
+  dec: (str) => { const s = atob(str); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; },
+};
+
+const ECDSA = { name: "ECDSA", namedCurve: "P-256" };
+const SIG = { name: "ECDSA", hash: "SHA-256" };
+export async function generatePublisherKey() {
+  const kp = await crypto.subtle.generateKey(ECDSA, true, ["sign", "verify"]);
+  return { privateKey: kp.privateKey, publicJwk: await crypto.subtle.exportKey("jwk", kp.publicKey) };
+}
+export async function signManifest(manifest, privateKey) {
+  const sig = await crypto.subtle.sign(SIG, privateKey, te.encode(canonical(manifest)));
+  return b64.enc(sig);
+}
+export async function verifyManifest(manifest, sig, jwk) {
+  const key = await crypto.subtle.importKey("jwk", jwk, ECDSA, false, ["verify"]);
+  return crypto.subtle.verify(SIG, key, b64.dec(sig), te.encode(canonical(manifest)));
+}
+
+export class LayerError extends Error {}
+
+// A manifest version may be at most this far ahead of max(running version, now). Versions that are
+// small counters or millisecond timestamps are never near it; one enormous version is refused
+// instead of leaving no higher version to publish (red-team RT-02).
+export const MAX_VERSION_AHEAD_MS = 365 * 24 * 3600 * 1000;
+
+// ---------- host state ----------
+// A Map with a change log. Each layer worker holds a replica of the store; the log lets the host send
+// a worker only the keys that changed since its last call instead of copying the whole store per call
+// (which cost 157 ms per event at 100k keys and broke the 100 ms call limit at 1M keys).
+const LOG_MAX = 65536;
+let storeSeq = 0;
+export class Store {
+  constructor(init) { this.map = new Map(init ?? []); this.log = []; this.base = 0; this.id = ++storeSeq; this.onChange = null; }
+  get rev() { return this.base + this.log.length; }
+  get size() { return this.map.size; }
+  get(k) { return this.map.get(k); }
+  has(k) { return this.map.has(k); }
+  keys() { return this.map.keys(); }
+  values() { return this.map.values(); }
+  entries() { return this.map.entries(); }
+  forEach(f) { this.map.forEach(f); }
+  [Symbol.iterator]() { return this.map[Symbol.iterator](); }
+  set(k, v) { this.map.set(k, v); this.note(k); return this; }
+  delete(k) { const had = this.map.delete(k); if (had) this.note(k); return had; }
+  note(k) {
+    this.log.push(k);
+    if (this.log.length > LOG_MAX) { const drop = this.log.length - (LOG_MAX >> 1); this.log.splice(0, drop); this.base += drop; }
+    this.onChange?.(k);
+  }
+  // Keys changed after `rev`, or null when the log no longer reaches back that far.
+  since(rev) { return rev < this.base ? null : [...new Set(this.log.slice(rev - this.base))]; }
+  snapshot() { return this.map; }
+  fork() { return new Overlay(this); }
+}
+// Copy-on-write view used to stage a swap: writes stay here until commit(), so staging costs
+// O(keys written), not O(store size).
+const GONE = Symbol("deleted");
+class Overlay {
+  constructor(parent) { this.parent = parent; this.writes = new Map(); this.log = []; this.base = 0; this.id = ++storeSeq; }
+  get rev() { return this.log.length; }
+  get(k) { if (this.writes.has(k)) { const v = this.writes.get(k); return v === GONE ? undefined : v; } return this.parent.get(k); }
+  has(k) { return this.writes.has(k) ? this.writes.get(k) !== GONE : this.parent.has(k); }
+  set(k, v) { this.writes.set(k, v); this.log.push(k); return this; }
+  delete(k) { const had = this.has(k); this.writes.set(k, GONE); this.log.push(k); return had; }
+  since(rev) { return [...new Set(this.log.slice(rev))]; }
+  snapshot() { const m = new Map(this.parent.snapshot()); for (const [k, v] of this.writes) v === GONE ? m.delete(k) : m.set(k, v); return m; }
+  *[Symbol.iterator]() { for (const [k, v] of this.snapshot()) yield [k, v]; }
+  // Replays the writes onto the parent in order, so parent.rev advances by exactly this.rev.
+  commit() { const before = this.parent.rev; for (const k of this.log) { const v = this.writes.get(k); v === GONE ? this.parent.delete(k) || this.parent.note(k) : this.parent.set(k, v); } return before; }
+}
+
+// ---------- sandbox limits ----------
+// Every layer runs in its own worker (Web Worker in browsers, worker_threads in Node), never on the
+// host's thread. A call that runs past its time limit gets its worker killed, and the host treats
+// that like a trap: the call's state changes are dropped and the slot is reverted.
+export const DEFAULT_LIMITS = {
+  callMs: 100,     // wall-clock budget for one llp_view / llp_event / llp_migrate call
+  firstCallMs: 1000, // budget for the first call in a fresh worker, which also pays lazy compilation
+                     // and is the one most likely to land while the device is busy (a swap, app start)
+  loadMs: 2000,    // budget for compile + instantiate (+ start function) + llp_schema
+  memoryMb: 32,    // cap on the layer's linear memory, written into the module's memory limits
+  uiNodes: 10000,  // cap on UI nodes one call may emit (bounds the worker's JS heap in every engine)
+  heapMb: 64,      // worker JS heap cap (Node only; browsers have no per-worker heap limit)
+  blobMb: 16,      // largest layer download accepted (SEC-06)
+  maxKeys: 2_000_000, // state quota: keys in the host store a layer call may grow it to (CO-04)
+  maxValueKb: 256,    // state quota: largest string value one write may store (CO-04)
+  isolation: "worker", // "inline" runs layers on the host's thread with no time limit: only for trusted
+                        // code, e.g. simulating many devices in one process (bench/sim-hosts.mjs)
+};
+
+// Rewrite the module's own memory declaration so memory.grow fails past the cap. The engine
+// enforces it, so a runaway allocation traps inside the layer instead of eating host memory.
+const PAGE = 65536;
+function readU32(b, o) { let r = 0, sh = 0, x; do { x = b[o++]; r |= (x & 0x7f) << sh; sh += 7; } while (x & 0x80); return [r >>> 0, o]; }
+function u32(n) { const out = []; do { let x = n & 0x7f; n >>>= 7; if (n) x |= 0x80; out.push(x); } while (n); return out; }
+export function capMemory(bytes, maxPages) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (b.length < 8 || b[0] !== 0 || b[1] !== 0x61 || b[2] !== 0x73 || b[3] !== 0x6d) throw new LayerError("not a wasm module");
+  let o = 8;
+  while (o < b.length) {
+    const id = b[o];
+    const [size, body] = readU32(b, o + 1);
+    if (id === 5) {
+      let [count, p] = readU32(b, body);
+      const mems = [];
+      for (let i = 0; i < count; i++) {
+        const flags = b[p++];
+        if (flags & 0x04) throw new LayerError("64-bit memory is not supported");
+        let min, max = Infinity; [min, p] = readU32(b, p);
+        if (flags & 0x01) [max, p] = readU32(b, p);
+        if (min > maxPages) throw new LayerError(`layer asks for ${Math.round(min * PAGE / 2 ** 20)} MB of memory at start; limit is ${Math.round(maxPages * PAGE / 2 ** 20)} MB`);
+        mems.push([(flags & 0x02) | 0x01, ...u32(min), ...u32(Math.min(max, maxPages))]);
+      }
+      const content = [...u32(count), ...mems.flat()];
+      const out = new Uint8Array(b.length - (body + size - o) + 1 + u32(content.length).length + content.length);
+      out.set(b.subarray(0, o), 0);
+      let w = o; out[w++] = 5;
+      for (const x of u32(content.length)) out[w++] = x;
+      out.set(content, w); w += content.length;
+      out.set(b.subarray(body + size), w);
+      return out;
+    }
+    o = body + size;
+  }
+  return b; // no memory defined here: instantiation fails later ("layer must export memory")
+}
+
+// ---------- the worker: owns one layer instance and the guest ABI ----------
+// Self-contained (it's stringified into the worker), so it must not use anything from this file.
+function llpWorker(post, onMessage) {
+  const te = new TextEncoder(), td = new TextDecoder();
+  class LayerError extends Error {}
+  let ex = null, mem = null, ctx = null, maxNodes = 10000, memCap = Infinity, logs = [];
+  // The worker keeps its own replica of host state. The host sends only the keys that changed since
+  // this worker's last call, so a call costs the same with 10 keys or a million.
+  let replica = new Map();
+  const sync = (s) => { if (!s) return; if (s.full) replica = s.full; for (const [k, v] of s.set ?? []) replica.set(k, v); for (const k of s.del ?? []) replica.delete(k); };
+  const bytes = (p, l) => new Uint8Array(mem.buffer, p, l);
+  const str = (p, l) => td.decode(bytes(p, l));
+  const put = (s, p, cap) => { const b = te.encode(s); bytes(p, Math.min(b.length, cap)).set(b.subarray(0, cap)); return b.length; };
+  const c = () => { if (!ctx) throw new LayerError("host call outside a host-initiated call"); return ctx; };
+  const node = (n) => { const x = c(); if (++x.nodes > maxNodes) throw new LayerError(`UI exceeded ${maxNodes} nodes`); x.stack[x.stack.length - 1].c.push(n); return n; };
+  const write = (k, v) => { c().writes.set(k, v); };
+  const read = (k) => { const x = c(); return x.writes.has(k) ? x.writes.get(k) : replica.get(k); };
+  const llp = {
+    ui_begin: (p, l) => c().stack.push(node({ k: str(p, l), a: {}, c: [] })),
+    ui_attr: (kp, kl, vp, vl) => { const s = c().stack; s[s.length - 1].a[str(kp, kl)] = str(vp, vl); },
+    ui_text: (p, l) => { node({ k: "text", t: str(p, l) }); },
+    ui_end: () => { const s = c().stack; if (s.length <= 1) throw new LayerError("ui_end without ui_begin"); s.pop(); },
+    kv_get_n: (kp, kl, def) => { const v = read(str(kp, kl)); return typeof v === "number" ? v : def; },
+    kv_set_n: (kp, kl, v) => write(str(kp, kl), v),
+    kv_get_s: (kp, kl, bp, cap) => { const v = read(str(kp, kl)); return put(v == null ? "" : String(v), bp, cap); },
+    kv_set_s: (kp, kl, vp, vl) => write(str(kp, kl), str(vp, vl)),
+    ev_id: (bp, cap) => put(c().event?.id ?? "", bp, cap),
+    ev_val: (bp, cap) => put(c().event?.value ?? "", bp, cap),
+    cap: (np, nl, ap, al) => { const x = c(); x.effects.push({ name: str(np, nl), arg: str(ap, al) }); return x.effects.length; },
+    log: (p, l) => { if (logs.length < 100) logs.push(str(p, l)); },
+    now: () => Date.now(),
+  };
+  const env = { abort: () => { throw new LayerError("layer aborted"); }, seed: () => Math.random() * 2 ** 32 };
+  onMessage(async ({ id, op, ...m }) => {
+    logs = [];
+    try {
+      if (op === "load") {
+        maxNodes = m.maxNodes; memCap = m.memCap;
+        const { instance } = await WebAssembly.instantiate(m.bytes, { llp, env });
+        ex = instance.exports;
+        if (!(ex.memory instanceof WebAssembly.Memory)) throw new LayerError("layer must export memory");
+        if (!m.headless && typeof ex.llp_view !== "function") throw new LayerError("layer must export llp_view");
+        mem = ex.memory;
+        post({ id, ok: true, schema: ex.llp_schema ? ex.llp_schema() : 0, hasMigrate: typeof ex.llp_migrate === "function", hasView: typeof ex.llp_view === "function", logs });
+      } else if (op === "sync") {
+        sync(m.sync);
+        post({ id, ok: true, size: replica.size });
+      } else if (op === "call") {
+        sync(m.sync);
+        const root = { k: "root", a: {}, c: [] };
+        ctx = { stack: [root], event: m.event, effects: [], writes: new Map(), nodes: 0 };
+        try {
+          ex[m.fn]?.(...m.args);
+          if (ctx.stack.length !== 1) throw new LayerError(`unbalanced UI in ${m.fn}`);
+          post({ id, ok: true, tree: root.c.length === 1 ? root.c[0] : root, effects: ctx.effects, writes: [...ctx.writes], logs });
+        } finally { ctx = null; }
+      }
+    } catch (e) {
+      let error = e?.message ?? String(e);
+      const used = mem ? mem.buffer.byteLength : 0; // memory.grow can't be hooked, so report when a trap happens near the cap
+      if (used >= memCap * 0.9) error += ` (layer memory at ${Math.round(used / 2 ** 20)} of ${Math.round(memCap / 2 ** 20)} MB limit)`;
+      post({ id, ok: false, error, logs });
+    }
+  });
+  post({ ready: true });
+}
+const WORKER_SRC = `(${llpWorker})(
+  typeof self !== "undefined" && typeof self.postMessage === "function" ? (m) => self.postMessage(m) : (m) => require("node:worker_threads").parentPort.postMessage(m),
+  typeof self !== "undefined" && typeof self.postMessage === "function" ? (f) => { self.onmessage = (e) => f(e.data); } : (f) => require("node:worker_threads").parentPort.on("message", f));`;
+
+// Last resort for pages whose security policy forbids workers: same code and messages, but on the
+// page's own thread, so time limits can't preempt it. The host logs loudly when this happens.
+function inlineWorker() {
+  let onMsg = () => {}, handler = () => {};
+  llpWorker((m) => onMsg(m), (f) => { handler = f; });
+  return { inline: true, post: (m) => queueMicrotask(() => handler(structuredClone(m))), listen: (f) => { onMsg = f; }, kill: () => { handler = () => {}; onMsg = () => {}; } };
+}
+
+let browserUrl = null, workersBlocked = false;
+async function spawnWorker(limits) {
+  if (typeof globalThis.Worker === "function") { // browsers, Deno, Bun
+    if (workersBlocked) return inlineWorker();
+    let w;
+    try {
+      browserUrl ??= URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+      w = new Worker(browserUrl);
+    } catch { workersBlocked = true; return inlineWorker(); }
+    // A security policy can also block the worker after construction; it then fails without ever saying ready.
+    const started = await new Promise((res) => {
+      const t = setTimeout(() => res(false), 5000);
+      w.onmessage = (e) => { clearTimeout(t); res(e.data?.ready === true); };
+      w.onerror = (e) => { e.preventDefault?.(); clearTimeout(t); res(false); };
+    });
+    if (!started) { w.terminate(); workersBlocked = true; return inlineWorker(); }
+    return {
+      post: (m) => w.postMessage(m),
+      listen: (onMsg, onDie) => { w.onmessage = (e) => onMsg(e.data); w.onerror = (e) => { e.preventDefault?.(); onDie(e.message || "worker crashed"); }; },
+      kill: () => w.terminate(),
+    };
+  }
+  const { Worker: NodeWorker } = await import("node:worker_threads");
+  const w = new NodeWorker(WORKER_SRC, { eval: true, resourceLimits: { maxOldGenerationSizeMb: limits.heapMb, maxYoungGenerationSizeMb: Math.max(4, limits.heapMb >> 3) } });
+  w.unref(); // an idle layer must not keep the process alive; the call timer does while a call is in flight
+  return {
+    post: (m) => w.postMessage(m),
+    listen: (onMsg, onDie) => {
+      w.on("message", onMsg); w.on("error", (e) => onDie(e.code === "ERR_WORKER_OUT_OF_MEMORY" ? "worker ran out of memory" : e.message)); w.on("exit", () => onDie("worker exited"));
+      w.unref(); // adding a message listener re-refs the worker
+    },
+    kill: () => w.terminate(),
+  };
+}
+
+// Host-side handle on one layer's worker. One request at a time; a request that overruns kills it.
+class Sandbox {
+  constructor(w) {
+    this.w = w; this.dead = null; this.pending = null; this.seq = 0; this.calls = 0;
+    w.listen((m) => { const p = this.pending; if (p && m.id === p.id) { this.pending = null; clearTimeout(p.timer); p.resolve(m); } },
+             (why) => this.die(why));
+  }
+  die(why) {
+    if (this.dead) return;
+    this.dead = why; this.w.kill();
+    const p = this.pending; this.pending = null;
+    if (p) { clearTimeout(p.timer); p.reject(new LayerError(why)); }
+  }
+  kill() { this.die("killed by host"); }
+  request(msg, ms, transfer) {
+    if (this.dead) return Promise.reject(new LayerError(`layer is dead (${this.dead})`));
+    return new Promise((resolve, reject) => {
+      const id = ++this.seq;
+      const timer = setTimeout(() => this.die(`ran past its ${ms} ms time limit; worker killed`), ms);
+      this.pending = { id, resolve, reject, timer };
+      this.w.post({ id, ...msg }, transfer);
+    }).then((r) => { if (!r.ok) throw Object.assign(new LayerError(r.error), { logs: r.logs }); return r; });
+  }
+}
+
+const PLACES = new Set(["client", "server", "any"]);
+
+// ---------- per-slot key rules (red-team RT-04) ----------
+// manifest.keys = { slot: { own: [prefix...], read: [prefix...] } }. When a manifest declares keys,
+// each slot sees only keys under its own or read prefixes and may write only under its own
+// prefixes; no key prefix has two owners. Host-internal keys (__schema.*) are never writable by a
+// layer, with or without declared keys.
+const HOST_KEYS = "__schema.";
+const under = (prefixes, k) => prefixes.some((p) => k.startsWith(p));
+export function keyRules(manifest) {
+  const decl = manifest.keys;
+  if (decl === undefined) return null;
+  if (!decl || typeof decl !== "object" || Array.isArray(decl)) throw new LayerError("keys must be an object of { slot: { own, read } }");
+  const rules = new Map(), owners = [];
+  const list = (slot, name, v) => {
+    if (v === undefined) return [];
+    if (!Array.isArray(v) || v.length > 64 || !v.every((p) => typeof p === "string" && p.length > 0 && p.length <= 256)) throw new LayerError(`keys.${slot}.${name} must be a list of up to 64 non-empty prefixes`);
+    if (v.some((p) => p.startsWith(HOST_KEYS) || HOST_KEYS.startsWith(p))) throw new LayerError(`keys.${slot}.${name}: ${HOST_KEYS}* keys belong to the host`);
+    return v;
+  };
+  for (const slot of Object.keys(manifest.layers)) {
+    const d = decl[slot];
+    if (!d || typeof d !== "object") throw new LayerError(`keys: slot ${slot} declares no keys (every slot needs an entry once a manifest declares keys)`);
+    const own = list(slot, "own", d.own), read = list(slot, "read", d.read);
+    for (const p of own) for (const [q, other] of owners) if (p.startsWith(q) || q.startsWith(p)) throw new LayerError(`keys: "${p}" (${slot}) overlaps "${q}" (${other}); a key has one owner`);
+    for (const p of own) owners.push([p, slot]);
+    rules.set(slot, { own, read, id: JSON.stringify([own, read]) });
+  }
+  return rules;
+}
+// manifest.caps = { slot: [capability names] } (AI-03). When a manifest declares caps, a slot may use
+// only the capabilities listed for it (a slot with no entry gets none); the host refuses the rest.
+export function capRules(manifest) {
+  const decl = manifest.caps;
+  if (decl === undefined) return null;
+  if (!decl || typeof decl !== "object" || Array.isArray(decl)) throw new LayerError("caps must be an object of { slot: [names] }");
+  const rules = new Map();
+  for (const [slot, names] of Object.entries(decl)) {
+    if (!(slot in manifest.layers)) throw new LayerError(`caps: no slot named ${slot}`);
+    if (!Array.isArray(names) || names.length > 64 || !names.every((n) => typeof n === "string" && n.length > 0 && n.length <= 64)) throw new LayerError(`caps.${slot} must be a list of up to 64 capability names`);
+    rules.set(slot, new Set(names));
+  }
+  for (const slot of Object.keys(manifest.layers)) if (!rules.has(slot)) rules.set(slot, new Set());
+  return rules;
+}
+// manifest.private = ["shared/users/", ...] (PR-01): under each prefix, the first path segment names the
+// user who may read the key (shared/users/alice/notes is alice's). Enforced by the server host when it
+// mirrors shared/ to clients; clients and layers just carry the field.
+export function privatePrefixes(manifest) {
+  const p = manifest.private;
+  if (p === undefined) return [];
+  if (!Array.isArray(p) || p.length > 64 || !p.every((x) => typeof x === "string" && x.startsWith("shared/") && x.length > 7 && x.length <= 256)) throw new LayerError("private must be a list of up to 64 shared/ prefixes");
+  return p;
+}
+// manifest.personal = ["shared/users/", "server/profiles/", ...] (PR-02): under each prefix, the first
+// path segment names the person the key is about. The server host exports and erases a person's data
+// by these prefixes (section 14). Private prefixes (above) count as personal too.
+export function personalPrefixes(manifest) {
+  const p = manifest.personal;
+  if (p === undefined) return [];
+  if (!Array.isArray(p) || p.length > 64 || !p.every((x) => typeof x === "string" && x.length > 0 && x.length <= 256 && x.endsWith("/") && !x.startsWith(HOST_KEYS) && !x.startsWith("__")))
+    throw new LayerError('personal must be a list of up to 64 key prefixes ending in "/" (not __ keys)');
+  return p;
+}
+// The person a key belongs to under the given prefixes, or null.
+export function ownerOf(key, prefixes) {
+  for (const p of prefixes) if (key.startsWith(p)) { const seg = key.slice(p.length).split("/")[0]; if (seg && key.length > p.length + seg.length) return seg; }
+  return null;
+}
+// ---------- protocol version (GOV-01) ----------
+// A manifest may say which LLP version it follows: "llp": 1. A host refuses versions it doesn't
+// implement. Version 1 is strict: every top-level field must be one this host understands (fields
+// starting "x-" are ignorable extensions), and isolation is the default, not opt-in: a v1 manifest must
+// declare "keys" (6.2) and "caps" (9). Manifests without "llp" are v0 and keep the v0 rules.
+export const LLP_VERSION = 1;
+export const MANIFEST_FIELDS = new Set(["llp", "app", "version", "epoch", "layers", "order", "hosts", "keys", "caps", "private", "personal", "channel", "rollout", "overlap"]);
+export function protocolProblem(m) {
+  if (m.llp === undefined) return null;
+  if (!Number.isSafeInteger(m.llp) || m.llp < 1) return `llp must be a positive integer, got ${JSON.stringify(m.llp)}`;
+  if (m.llp > LLP_VERSION) return `manifest needs LLP ${m.llp}; this host implements up to ${LLP_VERSION}`;
+  const unknown = Object.keys(m).filter((k) => !MANIFEST_FIELDS.has(k) && !k.startsWith("x-"));
+  if (unknown.length) return `unknown field${unknown.length > 1 ? "s" : ""} ${unknown.join(", ")} in an LLP ${m.llp} manifest (prefix optional fields with x-)`;
+  if (m.keys === undefined) return `an LLP ${m.llp} manifest must declare keys for every slot`;
+  if (m.caps === undefined) return `an LLP ${m.llp} manifest must declare caps (use {} for none)`;
+  return null;
+}
+const canRead = (rule, k) => !rule || under(rule.own, k) || under(rule.read, k);
+export const placement = (manifest, slot) => manifest.hosts?.[slot] ?? "client";
+
+export class LiveHost {
+  // role: "client" (default: UI, local state, device capabilities) or "server" (headless; runs the
+  // slots a manifest places on "server"; owns keys under shared/). See SPEC section 10.
+  // app: the one app this host runs (required unless allowUnsigned); manifests for any other app are refused.
+  // allowUnsigned: development/shadow-check mode only. Without it, a host with no trusted keys
+  // refuses every manifest (fail closed), instead of skipping the signature check.
+  // maxVersionAheadMs: how far a manifest version may run ahead of max(running version, now).
+  constructor({ trustedKeys = [], capabilities = {}, onRender = () => {}, onLog = () => {}, maxPrev = 5, limits = {}, role = "client", app = null, allowUnsigned = false, maxVersionAheadMs = MAX_VERSION_AHEAD_MS } = {}) {
+    this.trustedKeys = trustedKeys;      // publisher public keys (JWK)
+    this.allowUnsigned = allowUnsigned === true;
+    this.maxVersionAheadMs = maxVersionAheadMs;
+    this.capabilities = capabilities;    // name -> async (arg, ctx) => string result
+    this.onRender = onRender;
+    this.onLog = onLog;
+    this.maxPrev = maxPrev;
+    this.role = role;
+    this.limits = { ...DEFAULT_LIMITS, ...limits };
+    this.kv = new Store();               // host-owned state: survives every swap
+    this.blobs = new Map();              // content-addressed store: hash -> bytes
+    this.slots = new Map();              // slot -> { hash, box, prev: [hash...] }
+    this.version = 0;
+    this.epoch = 0;                      // versions are ordered as (epoch, version); see SPEC section 6 step 2
+    this.maxEpoch = 0;                   // highest epoch a manifest may claim (a fleet host raises it with each trusted keyring)
+    this.app = app;
+    this.manifest = null;
+    this.history = [];
+    this.spare = null;                   // a pre-spawned worker, so a swap doesn't wait for worker boot
+    this.pool = [];                      // healthy workers freed by swaps, reused before the spare
+    this.queue = Promise.resolve();      // apply / render / dispatch run one at a time, as they did when synchronous
+    if (this.allowUnsigned) this.log("security", "allowUnsigned is on: manifests are NOT signature-checked. Use this only for development and shadow checks.");
+  }
+
+  // Which code each slot is actually running (OB-01): after a revert this differs from the manifest.
+  running() { return Object.fromEntries([...this.slots].map(([slot, s]) => [slot, s.hash])); }
+
+  // Where a manifest sits relative to the running one: -1 older or same-as-running replay, 0 same, 1 newer.
+  compareVersion(m) {
+    const e = m?.epoch ?? 0;
+    if (e !== this.epoch) return e > this.epoch ? 1 : -1;
+    return m.version === this.version ? 0 : m.version > this.version ? 1 : -1;
+  }
+  // Why a manifest's version fields are unusable, or null when they're fine (SPEC section 6 step 2).
+  versionProblem(m) {
+    const v = m.version, e = m.epoch ?? 0;
+    if (!Number.isSafeInteger(v) || v < 1) return `version must be a positive safe integer, got ${JSON.stringify(v)}`;
+    if (!Number.isSafeInteger(e) || e < 0) return `epoch must be a non-negative safe integer, got ${JSON.stringify(e)}`;
+    if (e > this.maxEpoch) return `epoch ${e} is beyond the trusted keyring (${this.maxEpoch})`;
+    if (this.compareVersion(m) <= 0) return e < this.epoch ? `stale epoch ${e} < ${this.epoch}` : `stale version ${v} ≤ ${this.version}`;
+    const base = Math.max(e === this.epoch ? this.version : 0, Date.now());
+    if (v > base + this.maxVersionAheadMs) return `version ${v} is too far ahead (limit ${base + this.maxVersionAheadMs}); it would block every later release`;
+    return null;
+  }
+
+  // Code outside the host may assign a plain Map (e.g. state restored from disk); keep it a Store.
+  get kv() { return this._kv; }
+  set kv(m) { this._kv = m instanceof Store ? m : new Store(m); }
+
+  get headless() { return this.role === "server"; }
+  placedHere(manifest, slot) { const p = placement(manifest, slot); return p === this.role || p === "any"; }
+
+  log(kind, msg, extra = {}) { const e = { t: Date.now(), kind, msg, ...extra }; this.history.push(e); if (this.history.length > 5000) this.history.splice(0, 1000); this.onLog(e); }
+  exclusive(fn) {
+    this.pending = (this.pending ?? 0) + 1;
+    const r = this.queue.then(fn).finally(() => { this.pending--; });
+    this.queue = r.catch(() => {});
+    return r;
+  }
+
+  // ---------- layer instances (each in its own worker) ----------
+  ruleFor(slot) { return this.keyRules?.get(slot) ?? null; }
+  // Whether `slot` may use capability `name` under the running manifest (no caps field: any granted one).
+  capAllowed(slot, name) { return !this.capRules || (this.capRules.get(slot)?.has(name) ?? false); }
+  async load(slot, hash, rule = this.ruleFor(slot)) {
+    const inline = this.limits.isolation === "inline";
+    let box = this.pool.pop(); // a healthy worker freed by an earlier swap: no boot wait (its state replica stays valid)
+    if (!box) {
+      const w = inline ? inlineWorker() : await (this.spare ?? spawnWorker(this.limits));
+      this.spare = null;
+      // a server with many tenants can't keep a spare worker per tenant
+      if (!inline && !this.headless) { this.spare = spawnWorker(this.limits); this.spare.catch(() => {}); }
+      box = new Sandbox(w);
+    }
+    box.calls = 0; // the new module's first call gets the first-call budget
+    const w = box.w;
+    if (w.inline && !inline && !this.warnedInline) { this.warnedInline = true; this.log("error", "this page blocks workers, so layers run on the page's thread and a layer stuck in a loop can freeze it"); }
+    try {
+      const pages = Math.floor(this.limits.memoryMb * 2 ** 20 / PAGE);
+      const bytes = capMemory(this.blobs.get(hash), pages);
+      const r = await box.request({ op: "load", bytes, maxNodes: this.limits.uiNodes, memCap: pages * PAGE, headless: this.headless }, this.limits.loadMs);
+      this.flushLogs(slot, r.logs);
+      box.schema = r.schema; box.hasMigrate = r.hasMigrate; box.hasView = r.hasView;
+      box.rule = rule;
+      return box;
+    } catch (e) { box.kill(); this.flushLogs(slot, e.logs); throw e; }
+  }
+
+  // Bring a worker's replica of `kv` up to date: the changed keys ride along with the call, and only
+  // a worker that has never seen this store (or fell behind the change log) gets a full copy.
+  async syncFor(box, kv) {
+    const rule = box.rule ?? null, scope = rule?.id ?? "*";
+    const keys = box.src === kv && box.scope === scope ? kv.since(box.rev) : null;
+    if (keys) {
+      const set = [], del = [];
+      for (const k of keys) if (canRead(rule, k)) kv.has(k) ? set.push([k, kv.get(k)]) : del.push(k);
+      box.src = kv; box.rev = kv.rev;
+      return set.length || del.length ? { set, del } : null;
+    }
+    let full = kv.snapshot();
+    if (rule) { const m = new Map(); for (const [k, v] of full) if (canRead(rule, k)) m.set(k, v); full = m; } // a slot's replica holds only what it may read
+    const r = await box.request({ op: "sync", sync: { full } }, this.limits.loadMs + Math.ceil(full.size / 1000)); // ~1 ms per 1000 keys to copy
+    box.src = kv; box.rev = kv.rev; box.scope = scope;
+    return null;
+  }
+
+  // Run one guest entry point against `kv`. With apply (the default) the writes land in `kv` only
+  // if the call finishes cleanly; with apply=false they are only returned.
+  async call(slot, box, fn, kv, event = null, args = [], { apply = true } = {}) {
+    try {
+      const sync = await this.syncFor(box, kv);
+      const ms = box.calls++ ? this.limits.callMs : Math.max(this.limits.callMs, this.limits.firstCallMs);
+      const r = await box.request({ op: "call", fn, args, event, sync }, ms);
+      this.flushLogs(slot, r.logs);
+      r.writes = this.filterWrites(slot, r.writes);
+      this.checkWrites(slot, box.rule, r.writes);
+      this.checkQuota(slot, kv, r.writes);
+      if (apply) for (const [k, v] of r.writes) kv.set(k, v);
+      return r;
+    } catch (e) { this.flushLogs(slot, e.logs); throw new LayerError(`${fn}: ${e.message}`); }
+  }
+  // "No key has two owners": on a client, shared/ is a read cache the server fills. A client layer
+  // can't write it (it sends a remote call instead), so such writes are dropped.
+  filterWrites(slot, writes) {
+    if (this.role !== "client") return writes;
+    const kept = writes.filter(([k]) => !k.startsWith("shared/"));
+    if (kept.length !== writes.length) this.log("error", `${slot}: wrote shared/ keys on a client; dropped (shared/ is owned by the server host)`, { slot });
+    return kept;
+  }
+  // State quotas (CO-04): a call that would push the store past maxKeys, or write a value bigger than
+  // maxValueKb, fails like a trap and keeps nothing.
+  checkQuota(slot, kv, writes) {
+    let added = 0;
+    for (const [k, v] of writes) {
+      if (typeof v === "string" && v.length > this.limits.maxValueKb * 1024) throw new LayerError(`${slot} wrote ${Math.ceil(v.length / 1024)} KB to "${k}"; the limit is ${this.limits.maxValueKb} KB per value`);
+      if (k.length > 1024) throw new LayerError(`${slot} wrote a key longer than 1024 characters`);
+      if (!kv.has(k)) added++;
+    }
+    const size = kv.size ?? kv.parent?.size ?? 0;
+    if (added && size + added > this.limits.maxKeys) throw new LayerError(`${slot} would grow state to ${size + added} keys; the limit is ${this.limits.maxKeys}`);
+  }
+  // A write outside what the slot owns fails the call, like a trap: nothing it wrote is kept.
+  checkWrites(slot, rule, writes) {
+    for (const [k] of writes) {
+      if (this.headless && (k === "__reply" || k === "__error")) continue; // the server's reply channel, never stored
+      if (k.startsWith(HOST_KEYS)) throw new LayerError(`${slot} wrote "${k}": ${HOST_KEYS}* keys belong to the host`);
+      if (rule && !under(rule.own, k)) throw new LayerError(`${slot} wrote "${k}", outside the keys it owns`);
+    }
+  }
+  // A worker whose layer was swapped out cleanly is reused for the next load (its old instance is
+  // dropped when the new module loads). Workers that failed or overran are always killed instead.
+  recycle(box) { if (!box.dead && !box.pending && this.pool.length < 2) this.pool.push(box); else box.kill(); }
+  flushLogs(slot, logs) { for (const l of logs ?? []) this.log("layer", l, { slot }); }
+
+  // ---------- applying a streamed manifest ----------
+  // manifest = { app, version, layers: { slotName: sha256 }, order: [slot...], hosts?: { slot: "client"|"server"|"any" } }
+  apply(manifest, sig, fetchBlob) { return this.exclusive(() => this.applyNow(manifest, sig, fetchBlob)); }
+  async applyNow(manifest, sig, fetchBlob) {
+    const t0 = performance.now();
+    if (!this.headless && this.limits.isolation !== "inline") this.spare ??= spawnWorker(this.limits); // boot a worker while we verify and fetch
+    if (!manifest || typeof manifest !== "object" || !manifest.layers || typeof manifest.layers !== "object") return this.reject(manifest ?? {}, "malformed manifest", "malformed");
+    if (!this.allowUnsigned) {
+      if (!this.trustedKeys?.length) return this.reject(manifest, "no trusted keys configured; refusing every manifest (fail closed)", "untrusted");
+      let ok = false;
+      for (const k of this.trustedKeys) if (await verifyManifest(manifest, sig, k).catch(() => false)) { ok = true; break; }
+      if (!ok) return this.reject(manifest, "signature not trusted", "untrusted");
+      if (!this.app) return this.reject(manifest, "host has no app pinned; refusing (pass the app name when creating the host)", "untrusted");
+    }
+    if (this.app && manifest.app !== this.app) return this.reject(manifest, "different app", "wrong_app");
+    const pp = protocolProblem(manifest);
+    if (pp) return this.reject(manifest, pp, "protocol");
+    const vp = this.versionProblem(manifest);
+    if (vp) return this.reject(manifest, vp, vp.startsWith("stale ") ? "stale" : "bad_version");
+    for (const slot of Object.keys(manifest.layers)) if (!PLACES.has(placement(manifest, slot))) return this.reject(manifest, `${slot}: unknown host "${placement(manifest, slot)}"`, "malformed");
+
+    let rules;
+    let caps;
+    try {
+      for (const [slot, h] of Object.entries(manifest.layers)) if (typeof h !== "string" || !/^[0-9a-f]{64}$/.test(h)) throw new LayerError(`layers.${slot} must be a lowercase hex SHA-256`);
+      if (manifest.order !== undefined && !(Array.isArray(manifest.order) && manifest.order.every((s) => typeof s === "string" && Object.hasOwn(manifest.layers, s)))) throw new LayerError("order must be a list of slot names from layers");
+      rules = keyRules(manifest); caps = capRules(manifest); privatePrefixes(manifest); personalPrefixes(manifest);
+      if (manifest.overlap !== undefined && !(Number.isSafeInteger(manifest.overlap) && manifest.overlap >= 0)) throw new LayerError("overlap must be a non-negative number of milliseconds");
+    } catch (e) { return this.reject(manifest, e.message, "malformed"); }
+
+    // The whole manifest is verified, but only the slots placed on this host are fetched and run.
+    // Slots are staged in canonical (sorted) order: the signature covers the canonical form, not the
+    // order keys arrive in, so a relay must not be able to change what runs first.
+    const mine = Object.keys(manifest.layers).sort().map((slot) => [slot, manifest.layers[slot]]).filter(([slot]) => this.placedHere(manifest, slot));
+    // Fetch only what we don't have (content addressing).
+    const wanted = [...new Set(mine.map(([, h]) => h))].filter((h) => !this.blobs.has(h));
+    for (const h of wanted) {
+      const bytes = await fetchBlob(h);
+      if (!bytes || bytes.byteLength > this.limits.blobMb * 2 ** 20) return this.reject(manifest, `blob ${h.slice(0, 8)} is ${bytes ? Math.ceil(bytes.byteLength / 2 ** 20) + " MB, over the " + this.limits.blobMb + " MB limit" : "missing"}`, "blob");
+      if ((await sha256(bytes)) !== h) return this.reject(manifest, `blob ${h.slice(0, 8)} failed integrity check`, "blob");
+      this.blobs.set(h, bytes);
+    }
+
+    // Stage every changed slot in a copy-on-write view of state; commit all or nothing.
+    const shadowKv = this.kv.fork();
+    const staged = [];
+    try {
+      for (const [slot, hash] of mine) {
+        if (this.slots.get(slot)?.hash === hash) continue;
+        const box = await this.load(slot, hash, rules?.get(slot) ?? null);
+        staged.push({ slot, hash, box });
+        const want = box.schema;
+        const have = shadowKv.get(`__schema.${slot}`) ?? want;
+        // A server host with several channels shares one store between them (SPEC 10.5): when another
+        // channel already migrated this slot's data to a newer schema, older code joins it without
+        // migrating back, under the same expand/contract rule as the overlap window.
+        const joins = want < have && this.siblingSchema?.(slot, have) === true;
+        if (want !== have && !joins) {
+          if (!box.hasMigrate) throw new LayerError(`${slot}: schema ${have}→${want} but no llp_migrate`);
+          await this.call(slot, box, "llp_migrate", shadowKv, null, [have]);
+        }
+        if (joins) this.log("warn", `${slot}: data is on schema ${have} (migrated by another channel); this release's code expects ${want} and must read it (expand/contract)`, { slot });
+        else shadowKv.set(`__schema.${slot}`, want);
+        // health check: must render cleanly against real state (a headless layer may have no view)
+        if (box.hasView) await this.call(slot, box, "llp_view", shadowKv, null, [], { apply: !this.headless });
+      }
+    } catch (e) {
+      for (const s of staged) s.box.kill();
+      return this.reject(manifest, e.message, "layer_failed");
+    }
+
+    // Atomic commit.
+    const prevVersion = this.version, prevManifest = this.manifest;
+    const base = shadowKv.commit();
+    for (const { box } of staged) if (box.src === shadowKv) { box.src = this.kv; box.rev = base + box.rev; }
+    for (const { slot, hash, box } of staged) {
+      const cur = this.slots.get(slot);
+      if (cur) this.retire(slot, cur, prevVersion); // previous versions are kept as hashes and re-instantiated only on revert
+      this.slots.set(slot, { hash, box, prev: cur ? [cur.hash, ...cur.prev].slice(0, this.maxPrev) : [] });
+    }
+    this.keyRules = rules;
+    this.capRules = caps;
+    for (const [slot, s] of this.slots) s.box.rule = this.ruleFor(slot); // unchanged code can still get new key rules
+    const keep = new Set(mine.map(([slot]) => slot));
+    for (const s of [...this.slots.keys()]) if (!keep.has(s)) { this.retire(s, this.slots.get(s), prevVersion); this.slots.delete(s); }
+    this.order = (manifest.order ?? Object.keys(manifest.layers).sort()).filter((s) => keep.has(s));
+    this.app = manifest.app;
+    this.version = manifest.version;
+    this.epoch = manifest.epoch ?? 0;
+    this.manifest = manifest;
+    this.committed(prevManifest, manifest);
+    const ms = +(performance.now() - t0).toFixed(1);
+    this.log("swap", `v${manifest.version} live — ${staged.length} layer(s) swapped in ${ms} ms`, { ms, version: manifest.version, swapped: staged.map((s) => s.slot) });
+    await this.renderNow();
+    return { ok: true, ms, version: manifest.version, swapped: staged.map((s) => s.slot) };
+  }
+  // Hooks for the server host (overlap window). A client just stops the old worker.
+  retire(slot, cur, version) { this.recycle(cur.box); }
+  committed(prev, next) {}
+
+  // code (SPEC section 5, nack.code): malformed | untrusted | wrong_app | protocol | bad_version | stale | blob | layer_failed
+  reject(manifest, reason, code) {
+    this.log("reject", `v${manifest.version} rejected: ${reason}`, { version: manifest.version, code });
+    return { ok: false, code, reason, version: manifest.version };
+  }
+
+  // ---------- running ----------
+  render() { return this.exclusive(() => this.renderNow()); }
+  async renderNow() {
+    if (this.headless) return [];
+    const kv = this.kv;
+    const views = await Promise.all((this.order ?? []).map(async (slot) => {
+      for (;;) {
+        const s = this.slots.get(slot);
+        if (!s) return null;
+        // layers render in parallel against the same state; writes are merged in slot order below
+        try { const r = await this.call(slot, s.box, "llp_view", kv, null, [], { apply: false }); return { slot, tree: r.tree, writes: r.writes }; }
+        catch (e) { if (!(await this.revert(slot, e))) return { slot, error: e.message }; }
+      }
+    }));
+    const out = [];
+    for (const v of views) if (v) { for (const [k, x] of v.writes ?? []) this.kv.set(k, x); out.push(v.error ? { slot: v.slot, error: v.error } : { slot: v.slot, tree: v.tree }); }
+    this.onRender(out);
+    return out;
+  }
+
+  // Events are transactions: the layer's writes apply only if it finishes; if it traps or runs
+  // past its limits, nothing it wrote is kept and the layer is reverted.
+  async dispatch(slot, id, value = "") {
+    const effects = await this.exclusive(async () => {
+      const s = this.slots.get(slot);
+      if (!s) return [];
+      try { const r = await this.call(slot, s.box, "llp_event", this.kv, { id, value }); await this.renderNow(); return r.effects.map((fx) => ({ ...fx, hash: s.hash })); }
+      catch (e) { await this.revert(slot, e); await this.renderNow(); return []; }
+    });
+    for (const fx of effects) this.runCapability(slot, fx);
+  }
+
+  async runCapability(slot, { name, arg, hash }) {
+    if (!this.capAllowed(slot, name)) { this.log("cap", `capability "${name}" is not declared for ${slot} in this release; refused`, { slot, hash }); return this.dispatch(slot, `cap:${name}`, "error: not granted"); }
+    const impl = this.capabilities[name];
+    if (!impl) { this.log("cap", `capability "${name}" not granted`, { slot, hash }); return this.dispatch(slot, `cap:${name}`, "error: not granted"); }
+    try {
+      const result = await impl(arg, { slot, host: this });
+      if (result !== undefined) await this.dispatch(slot, `cap:${name}`, String(result));
+    } catch (e) { await this.dispatch(slot, `cap:${name}`, "error: " + e.message); }
+  }
+
+  async revert(slot, err) {
+    const s = this.slots.get(slot);
+    if (!s) return false;
+    s.box.kill();
+    let prev = s.prev;
+    // Never run older code on data a newer schema already migrated (ST-01): a previous version
+    // whose llp_schema differs from the stored schema is skipped.
+    const stored = this.kv.get(`__schema.${slot}`);
+    while (prev.length) {
+      const [back, ...rest] = prev;
+      try {
+        const box = await this.load(slot, back);
+        if (stored !== undefined && box.schema !== stored) {
+          box.kill();
+          this.log("error", `${slot}: not reverting to ${back.slice(0, 8)}: it expects schema ${box.schema}, but the data is on schema ${stored}`, { slot });
+          prev = rest;
+          continue;
+        }
+        this.slots.set(slot, { hash: back, box, prev: rest });
+        this.log("rollback", `${slot} failed (${err.message}) — reverted to ${back.slice(0, 8)}`, { slot });
+        return true;
+      } catch { prev = rest; }
+    }
+    // Nothing to fall back to: restart the same version in a fresh worker, so the slot still works
+    // for inputs that don't hit the bad path. This call's output is an error either way.
+    let box = s.box;
+    try { box = await this.load(slot, s.hash); } catch {}
+    this.slots.set(slot, { hash: s.hash, box, prev: [] });
+    this.log("error", `${slot}: ${err.message} (no previous version to revert to)`, { slot });
+    return false;
+  }
+
+  // Inputs bound to state write straight into the host store (no layer call needed). If calls are
+  // still queued, the write waits its turn, so "type A, click, type B, click" keeps its order.
+  setBound(key, value) {
+    if (this.role === "client" && key.startsWith("shared/")) { this.log("error", `input bound to ${key}: shared/ is owned by the server host; dropped`); return; }
+    if (this.pending) this.exclusive(() => { this.kv.set(key, value); }); else this.kv.set(key, value);
+  }
+
+  // The server host's copy of shared/ keys arriving on a client (bypasses the client-side write rule).
+  applyShared({ set = [], del = [], full = false }) {
+    return this.exclusive(async () => {
+      if (full) { const keep = new Set(set.map(([k]) => k)); for (const k of [...this.kv.keys()]) if (k.startsWith("shared/") && !keep.has(k)) this.kv.delete(k); }
+      for (const [k, v] of set) if (k.startsWith("shared/")) this.kv.set(k, v);
+      for (const k of del) if (k.startsWith("shared/")) this.kv.delete(k);
+      await this.renderNow();
+    });
+  }
+
+  // Stop every layer worker (lets a Node process exit at once; a browser tab doesn't need it).
+  close() {
+    for (const s of this.slots.values()) s.box.kill();
+    for (const b of this.pool.splice(0)) b.kill();
+    this.spare?.then((w) => w.kill(), () => {});
+    this.spare = null;
+  }
+}
