@@ -49,7 +49,7 @@ The factory integrates LLP into its own Change review panel. The checkout under 
 
 | What to inspect | Where to go |
 | --- | --- |
-| Product bugs, competing workflows and pilot criteria | [Product research](docs/research.pdf) |
+| Product thesis, competing workflows and paid-pilot criteria | [Current thesis](docs/product-thesis.md) · [Original founder research (PDF)](docs/research.pdf) |
 | Tested VibeCheck revision, before/after results, and downloadable example | [Experiment notebook](docs/experiments/README.md) |
 | An actual model-generated repair of the calendar bug | [Two attempts, exact patch, and independent replay](docs/experiments/agent-proposal.md) |
 | A draft PR created by the factory on its own repository | [Example PR with review evidence](https://github.com/marioG1025/morph-factory/pull/1) |
