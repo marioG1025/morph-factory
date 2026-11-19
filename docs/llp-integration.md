@@ -4,6 +4,8 @@ Morph Factory is a local Git review application. We used Nikhil Ajay Kadalge’s
 
 ## Follow one release
 
+The [offline replay](experiments/offline-replay.md) packages one actual review → compare → restore sequence into a single file. It uses the same upstream host core with client and server placement in one browser, verifies the recorded signatures and runs both Wasm modules. The sequence below describes the full local application, including the live WebSocket and product checkouts.
+
 ```mermaid
 sequenceDiagram
     actor Operator

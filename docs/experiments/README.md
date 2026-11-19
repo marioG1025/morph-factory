@@ -12,6 +12,8 @@ The [signed-in model experiment](agent-proposal.md) follows a real calendar fail
 
 ## The product change and the factory change
 
+The [single-file interactive replay](offline-replay.md) runs the actual signed client and service Wasm in a browser and lets you read the captured VibeCheck results offline. The [full desk restart experiment](desk-restart.md) checks the live product with its Python process and WebSocket publisher both restarted while the two reviewers keep their documents open.
+
 | Change | Original | With the patch or release |
 | --- | --- | --- |
 | VibeCheck date-only shows in America/Chicago | May 16 appears as May 15 in the event list and detail page. A January 1 case also displays the previous day. Two timed-event controls pass. | Both calendar dates display on their advertised day in both views. All six checks pass. [Product patch](../../ui/lab/calendar-day.patch) · [Executable probe](../../examples/vibecheck/check-dates.cjs) |

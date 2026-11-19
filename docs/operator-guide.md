@@ -39,7 +39,7 @@ The desk reports exactly what ran. Without a project check, it validates patch a
 
 ## Ask for an AI proposal
 
-Install and sign in to the Codex CLI and make `codex` available on your PATH. Use **Propose an idea** on an empty desk. Give it a concrete product behavior to change and optionally attach a tracked source file. The model can read a clean checkout. The change comes back as a draft. You can also use the command line while the desk is running:
+Install and sign in to the Codex CLI and make `codex` available on your PATH. Use **Propose an idea** on an empty desk. Describe the product behavior to change and optionally attach up to four tracked files, one path per line. The model can read a clean checkout. The change comes back as a draft. On the command line, repeat `--file` for each attachment.
 
 ```powershell
 python propose.py --idea "Add a Clear search button when no shows match" --file Music_Show_Helper/Frontend/src/pages/EventsPage.tsx

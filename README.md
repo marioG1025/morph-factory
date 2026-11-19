@@ -8,7 +8,7 @@ A local review desk for turning a product idea or a bug into a tested Git change
 
 ![Two live VibeCheck review tabs keep different panes while Compare arrives, four date cases turn green, and the original review is restored.](docs/media/peer-review.gif)
 
-[Two-tab recording and shared-cache findings](docs/experiments/shared-comparison.md) · [Single-tab walkthrough](docs/media/live-review.gif)
+[Two-tab recording and shared-cache findings](docs/experiments/shared-comparison.md) · [Interactive offline replay](docs/experiments/offline-replay.md) · [Single-tab walkthrough](docs/media/live-review.gif)
 
 ## Try it on a real product
 

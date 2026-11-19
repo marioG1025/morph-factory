@@ -1,0 +1,278 @@
+{
+  "format": "morph-factory/review-replay-v1",
+  "publicKey": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "BhIZ3eYfpYE7vl5O9-9C5mnIjtJGYjJ4EhDLe7oKlAw",
+    "y": "7moVmkkXqsat-ikuk59PrV5ut90ahY-1Wbzmce8mE44",
+    "ext": true,
+    "key_ops": [
+      "verify"
+    ]
+  },
+  "releases": [
+    {
+      "manifest": {
+        "llp": 1,
+        "app": "morph.factory.review",
+        "version": 1,
+        "order": [
+          "review",
+          "reviewService"
+        ],
+        "overlap": 0,
+        "x-morph-release": "review",
+        "layers": {
+          "review": "621de1317f6babd1a03e82ca9c5a2c0617101cc1a0036484cb96a688b3d28e77",
+          "reviewService": "768558725b0fb5154f37d3587874d2f3a763d5cb389e27649e062072e91f33c0"
+        },
+        "hosts": {
+          "review": "client",
+          "reviewService": "server"
+        },
+        "caps": {
+          "review": [
+            "deskAction"
+          ],
+          "reviewService": []
+        },
+        "keys": {
+          "review": {
+            "own": [
+              "review/"
+            ],
+            "read": [
+              "desk/"
+            ]
+          },
+          "reviewService": {
+            "own": [],
+            "read": []
+          }
+        }
+      },
+      "sig": "MlTohzlQkqfNi2ON02pkUfwg/LebfJqd1GaBxD3qZ/1YJSeNKWwjhE8316qg5MtOFn8likEGTN2bzAfdoL4lnw==",
+      "serverRehearsal": {
+        "app": "morph.factory.review",
+        "manifestDigest": "97b6d25eccdda956a1510bb1257421a0e88bf6b4a5dd25d9df7c697feabebb91",
+        "baseVersion": 0,
+        "version": 1,
+        "release": "review",
+        "ok": true,
+        "elapsedMs": 35,
+        "atUtc": "2026-11-19T05:08:10.606Z",
+        "sig": "eAE3Jh4XuBbLp2wLS6CsLmCbpiJ6ooJtHr2BVl1imE+eRiaVt+0kGQPF18kTccu0G1ekRgZId/7GdOFyWB4dMg==",
+        "checks": [
+          {
+            "operation": "release",
+            "expected": "review",
+            "actual": "review",
+            "ok": true
+          },
+          {
+            "operation": "compare",
+            "expected": "refused",
+            "actual": "refused",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "manifest": {
+        "llp": 1,
+        "app": "morph.factory.review",
+        "version": 2,
+        "order": [
+          "review",
+          "reviewService"
+        ],
+        "overlap": 30000,
+        "x-morph-release": "compare",
+        "layers": {
+          "review": "360131def246491798623dc6e773ff9c80bf625d55822b7bd75c67a0be6c8ed3",
+          "reviewService": "519e9701489a2fc64035f6422165580b16fe9ffa5ba8803b7e314792b7bde3bc"
+        },
+        "hosts": {
+          "review": "client",
+          "reviewService": "server"
+        },
+        "caps": {
+          "review": [
+            "deskAction",
+            "remote",
+            "compare"
+          ],
+          "reviewService": []
+        },
+        "keys": {
+          "review": {
+            "own": [
+              "review/"
+            ],
+            "read": [
+              "desk/"
+            ]
+          },
+          "reviewService": {
+            "own": [],
+            "read": []
+          }
+        }
+      },
+      "sig": "7F5zhdHUaaaR3bLNdPdn5HaxucKbWVQwGLHY2wHM09Rtc/GOy+C60gctHMDjgWiV5ITO3bBLX2C6OQYDSdKkRA==",
+      "serverRehearsal": {
+        "app": "morph.factory.review",
+        "manifestDigest": "5d6c6af849393f218eb254b114c354070da57d08990646884c0c2b0cf8d546bc",
+        "baseVersion": 1,
+        "version": 2,
+        "release": "compare",
+        "ok": true,
+        "elapsedMs": 55,
+        "atUtc": "2026-11-19T05:08:10.743Z",
+        "sig": "3R2iQlOfrpvqiBznGepsJ2YmqEhLhOa8Reg0QCLmbOmHsXNKqS14Svh+OktVSa4flmtGY3yG4WrXYyYLj3m/Mw==",
+        "checks": [
+          {
+            "operation": "release",
+            "expected": "compare",
+            "actual": "compare",
+            "ok": true
+          },
+          {
+            "operation": "compare",
+            "expected": "allowed",
+            "actual": "allowed",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "manifest": {
+        "llp": 1,
+        "app": "morph.factory.review",
+        "version": 3,
+        "order": [
+          "review",
+          "reviewService"
+        ],
+        "overlap": 0,
+        "x-morph-release": "review",
+        "layers": {
+          "review": "621de1317f6babd1a03e82ca9c5a2c0617101cc1a0036484cb96a688b3d28e77",
+          "reviewService": "768558725b0fb5154f37d3587874d2f3a763d5cb389e27649e062072e91f33c0"
+        },
+        "hosts": {
+          "review": "client",
+          "reviewService": "server"
+        },
+        "caps": {
+          "review": [
+            "deskAction"
+          ],
+          "reviewService": []
+        },
+        "keys": {
+          "review": {
+            "own": [
+              "review/"
+            ],
+            "read": [
+              "desk/"
+            ]
+          },
+          "reviewService": {
+            "own": [],
+            "read": []
+          }
+        }
+      },
+      "sig": "83I5bCxuPah4+CyVNStVOHmF3JAU2tN3IR8CuyITvVbSSWGQ/a1GJIY/FzemLjzcXE2MA7EgIzkO4pFhfFFD1g==",
+      "serverRehearsal": {
+        "app": "morph.factory.review",
+        "manifestDigest": "ef836a524fd5d7d4e7184ec1b0be9b0c59b7cc52a4975db6b0a5a92e252d876e",
+        "baseVersion": 2,
+        "version": 3,
+        "release": "review",
+        "ok": true,
+        "elapsedMs": 53,
+        "atUtc": "2026-11-19T05:08:12.243Z",
+        "sig": "X8klB6l6VI2qexSgCtk3z0ExT37rruWugO1Iyt+pUUPdildXzBK99MA+zQM8DuaQJjbljzhJrik6D9LejWmY0A==",
+        "checks": [
+          {
+            "operation": "release",
+            "expected": "review",
+            "actual": "review",
+            "ok": true
+          },
+          {
+            "operation": "compare",
+            "expected": "refused",
+            "actual": "refused",
+            "ok": true
+          }
+        ]
+      }
+    }
+  ],
+  "observation": {
+    "base": "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24",
+    "patchDigest": "880b40e53d1be903b5c6f7a0665b2e3bd330cc1c3197d142e4a8c0e0c0f67877",
+    "candidateTree": "7bb71ffcea84f90271e5120e1b71003a64d7d214",
+    "releaseVersion": 2,
+    "original": "failed",
+    "candidate": "passed",
+    "counts": {
+      "fixed": 4,
+      "regressed": 0,
+      "unchanged": 2,
+      "added": 0,
+      "removed": 0,
+      "inconclusive": 0
+    },
+    "cases": [
+      {
+        "id": "EventsPage:2026-05-16",
+        "name": "EventsPage · 2026-05-16",
+        "classification": "fixed",
+        "before": "failed",
+        "after": "passed"
+      },
+      {
+        "id": "EventsPage:2026-01-01",
+        "name": "EventsPage · 2026-01-01",
+        "classification": "fixed",
+        "before": "failed",
+        "after": "passed"
+      },
+      {
+        "id": "EventsPage:2026-05-16T03:00:00Z",
+        "name": "EventsPage · 2026-05-16T03:00:00Z",
+        "classification": "unchanged",
+        "before": "passed",
+        "after": "passed"
+      },
+      {
+        "id": "EventDetailPage:2026-05-16",
+        "name": "EventDetailPage · 2026-05-16",
+        "classification": "fixed",
+        "before": "failed",
+        "after": "passed"
+      },
+      {
+        "id": "EventDetailPage:2026-01-01",
+        "name": "EventDetailPage · 2026-01-01",
+        "classification": "fixed",
+        "before": "failed",
+        "after": "passed"
+      },
+      {
+        "id": "EventDetailPage:2026-05-16T03:00:00Z",
+        "name": "EventDetailPage · 2026-05-16T03:00:00Z",
+        "classification": "unchanged",
+        "before": "passed",
+        "after": "passed"
+      }
+    ]
+  }
+}

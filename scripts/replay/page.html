@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' data: blob:; style-src 'unsafe-inline'; worker-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Change review replay · Morph Factory</title>
+<style>
+  :root { color-scheme:dark; --ink:#f3f4ec; --muted:#b3b9ac; --green:#d5fa91; --line:#3b4238; --paper:#191e19; font:16px/1.52 Inter,"Segoe UI",sans-serif; color:var(--ink); background:#111511 }
+  * { box-sizing:border-box } body { margin:0 } main,header,footer { max-width:860px; padding:0 24px; margin:auto }
+  header { padding-top:26px; padding-bottom:22px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:center }
+  a { color:var(--green); text-underline-offset:3px } a:hover { color:white } header a { font-size:.9rem }
+  .brand { font-weight:750; letter-spacing:-.04em; font-size:1.18rem } .brand span { color:var(--green) }
+  h1 { margin:44px 0 10px; font-size:clamp(2.1rem,6vw,3.7rem); letter-spacing:-.065em; line-height:1.05 }
+  h2 { margin:0 0 5px; font-size:1.38rem; letter-spacing:-.025em } h3 { margin:0 }
+  p { margin:0 0 12px } .lede { color:var(--muted); max-width:660px }
+  .release { display:flex; align-items:center; justify-content:space-between; gap:15px; margin:25px 0 15px; min-height:48px; flex-wrap:wrap }
+  button { font:inherit; font-weight:600; cursor:pointer; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:6px; padding:8px 14px }
+  button:focus-visible,a:focus-visible,summary:focus-visible { outline:3px solid var(--green); outline-offset:3px }
+  button:disabled { opacity:.65; cursor:default } .primary { background:var(--green); color:#162111; border-color:var(--green) }
+  #stage { color:var(--green); margin:0; font-size:.92rem } .draft { background:var(--paper); border:1px solid var(--line); padding:clamp(16px,4vw,30px); border-radius:12px }
+  .project, .note, footer { color:var(--muted); font-size:.88rem } .project { margin-bottom:6px }
+  code, pre { font-family:"IBM Plex Mono",Consolas,monospace } #tabs { display:flex; gap:5px; margin:20px 0 12px }
+  #tabs button { font-size:.88rem; padding:6px 12px } #tabs [aria-pressed=true] { color:var(--green); border-color:var(--green) }
+  #document { margin:0; padding:16px; max-height:210px; overflow:auto; background:#101410; color:#d8dfcf; border:1px solid var(--line); border-radius:6px; font-size:.82rem; line-height:1.65; white-space:pre }
+  #comparison { border-top:1px solid var(--line); margin-top:18px; padding-top:18px } #comparison h3 { margin-bottom:8px } #observation { margin-top:18px }
+  table { width:100%; border-collapse:collapse; font-size:.9rem } th,td { text-align:left; padding:7px 5px; border-bottom:1px solid var(--line) } th { color:var(--muted); font-weight:500 }
+  td:first-child { overflow-wrap:anywhere } .fixed { color:var(--green) } .details { margin:17px 0; color:var(--muted); font-size:.9rem } summary { cursor:pointer }
+  dl { display:grid; grid-template-columns:max-content minmax(0,1fr); gap:7px 15px } dd { margin:0; overflow-wrap:anywhere }
+  #error { color:#ffb8a6 } footer { margin:36px auto; border-top:1px solid var(--line); padding-top:16px } footer pre { white-space:pre-wrap; font-size:.72rem }
+  [hidden] { display:none !important }
+  @media(max-width:480px){ main,header,footer { padding-left:16px; padding-right:16px } dl { display:block } dd { margin:0 0 10px } table { font-size:.8rem } }
+</style>
+</head>
+<body>
+<header><strong class="brand">Morph<span> / </span>Factory</strong><a href="https://github.com/marioG1025/morph-factory">View Factory on GitHub</a></header>
+<main>
+  <h1>Change review replay</h1>
+  <p class="lede">Apply a signed update to this open draft. The browser runs both recorded Wasm modules. The six product test results come from a captured VibeCheck run.</p>
+  <div class="release"><p id="stage" role="status">Verifying the recorded releases…</p><button id="advance" type="button" class="primary" disabled>Apply signed update</button></div>
+  <p id="error" role="alert"></p>
+  <section class="draft" aria-labelledby="title">
+    <p class="project">VibeCheck · Change review</p><h2 id="title">Keep date-only concerts on the advertised day</h2>
+    <div id="tabs" aria-label="Draft views"></div>
+    <pre id="document" tabindex="0" aria-label="Selected draft view"></pre>
+    <section id="comparison" hidden>
+      <h3>Compare results</h3><button id="show" type="button">Show captured comparison</button>
+      <div id="observation" hidden><p id="summary"></p><table><thead><tr><th scope="col">Product case</th><th scope="col">Original</th><th scope="col">Patched</th></tr></thead><tbody id="cases"></tbody></table></div>
+    </section>
+  </section>
+  <details class="details"><summary>Inspect the release evidence</summary><dl id="facts"></dl></details>
+  <noscript>This replay requires JavaScript and WebAssembly. The <a href="https://github.com/marioG1025/morph-factory/blob/main/docs/experiments/README.md">experiment notebook</a> includes the results.</noscript>
+</main>
+<footer>Built with Nikhil Ajay Kadalge’s <a href="https://github.com/nik190799/live-layer-protocol">Live Layer Protocol</a>. To run the comparison on a checkout, use the <a href="https://github.com/marioG1025/morph-factory#try-it-on-a-real-product">Factory launcher</a>.
+  <details class="details"><summary>Apache 2.0 license</summary><pre><!-- UPSTREAM_LICENSE --></pre></details>
+</footer>
+<script type="application/json" id="bundle">/* BUNDLED_REPLAY */</script>
+<script type="module">/* REPLAY_MODULE */</script>
+</body>
+</html>
