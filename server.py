@@ -112,12 +112,24 @@ class Desk:
                 raise ValueError(f"Unexpected saved draft format in {self.file}")
             self.draft = saved.get("draft")
             self.history = saved.get("history", [])
+            legacy = "draftGeneration" not in saved
+            if legacy:
+                # Older files cannot identify a pre-restart incarnation of the
+                # same patch. Allocate a fresh generation once during upgrade.
+                self.draft_generation = (1 << 48) + secrets.randbits(48)
+            else:
+                generation = saved["draftGeneration"]
+                if type(generation) is not int or not 0 <= generation < 2**53:
+                    raise ValueError(f"Invalid saved draft generation in {self.file}")
+                self.draft_generation = generation
             if self.draft and saved.get("check") != self.command:
                 self.draft.pop("comparison", None)
             self.recover_review()
             # Receipts are signed in memory by this instance of the verifier.
             if self.draft and not self.draft.get("review"):
                 self.draft["verification"] = None
+            if legacy:
+                self.persist(self.draft)
 
     def _require_comparable_draft(self, payload):
         try:
@@ -255,8 +267,11 @@ class Desk:
                     "draftGeneration": self.draft_generation, "occupied": bool(self.draft or self.agent["status"] == "running"),
                     "checkKey": self.check_key, "checkRun": self.head_result["id"] if self.head_result else None}
 
-    def persist(self, draft, outcome=None):
+    def persist(self, draft, outcome=None, *, replace_draft=False):
         self.file.parent.mkdir(parents=True, exist_ok=True)
+        # JavaScript peers compare this number exactly. State and identity must
+        # both commit before an observer can see either one.
+        generation = (self.draft_generation + int(replace_draft)) % 2**53
         history = self.history
         previous = draft or self.draft
         if outcome and previous:
@@ -266,7 +281,7 @@ class Desk:
                 event["branch"] = previous["review"]["branch"]
             history = [event, *history][:40]
         saved = {"version": 1, "repo": self.repo, "draft": draft, "check": self.command,
-                 "history": history}
+                 "history": history, "draftGeneration": generation}
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -282,6 +297,7 @@ class Desk:
                 Path(tmp_name).unlink(missing_ok=True)
         self.draft = draft
         self.history = history
+        self.draft_generation = generation
 
     def make_draft(self, payload):
         if "checkSource" in payload:
@@ -315,9 +331,9 @@ class Desk:
             title, diff = proposal["title"], proposal["diff"]
         if not title or len(title) > 200 or not diff.strip() or "\x00" in diff:
             raise ValueError("Supply a title of 1–200 characters and a nonempty text patch.")
-        self.persist({"title": title, "base": current, "diff": diff, "verification": None, "review": None})
+        self.persist({"title": title, "base": current, "diff": diff, "verification": None, "review": None},
+                     replace_draft=True)
         self.head_result = None
-        self.draft_generation += 1
 
     def recover_review(self):
         if not self.draft or "pendingReview" not in self.draft:
@@ -350,8 +366,7 @@ class Desk:
                 self.make_draft(payload)
             elif action == "discard":
                 self.check_expected_patch(payload)
-                self.persist(None, "Cleared from desk")
-                self.draft_generation += 1
+                self.persist(None, "Cleared from desk", replace_draft=True)
             elif not self.draft:
                 raise ValueError("Create a proposal first.")
             elif self.draft.get("review"):

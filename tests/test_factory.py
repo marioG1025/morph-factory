@@ -119,6 +119,7 @@ desk.act('review', {'digest': receipt['digest']})
         self.assertIn(f"refs/heads/{planned['branch']} {planned['commit']}", branches)
         resumed = Desk(self.repo, state_dir, None)
         self.assertEqual(resumed.draft["review"], planned)
+        self.assertEqual(resumed.draft_generation, desk.draft_generation)
         for _ in range(2):
             saved = resumed.act("review", {"digest": planned["digest"]})
             self.assertEqual(saved["draft"]["review"], planned)
