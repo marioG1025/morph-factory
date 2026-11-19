@@ -57,6 +57,9 @@ jobs:
       - name: Recover a saved comparison after an interrupted notification
         timeout-minutes: 3
         run: node scripts/restart-desk.mjs --interrupt-notification
+      - name: Compare both calendar patches on VibeCheck’s rendered routes
+        timeout-minutes: 6
+        run: python scripts/compare-product-browser.py
       - name: Record browser and platform
         if: always()
         shell: bash

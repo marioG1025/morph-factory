@@ -1,4 +1,5 @@
 """Exercise the VibeCheck screens affected by a proposed change in a disposable checkout."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -19,15 +20,10 @@ def report(key, name, status, detail):
             print(json.dumps(dict(id=key, name=name, status=status, detail=detail)), file=stream)
 
 
-def frontend_build():
-    name = "VibeCheck frontend production build"
-    def record(status, message):
-        print(message, flush=True)
-        report("frontend:build", name, status, message)
-        return 0 if status == "passed" else 1
+def install_frontend():
     npm = shutil.which("npm.cmd") or shutil.which("npm")
     if not npm:
-        return record("error", "Install npm to run the production build.")
+        raise RuntimeError("Install npm to prepare the VibeCheck frontend.")
     command = [npm]
     # Windows' npm.cmd can select a different architecture of Node from PATH.
     # Use the same interpreter for npm's native package selection and its scripts.
@@ -47,7 +43,20 @@ def frontend_build():
             shutil.copyfile(lock, FRONT / "package-lock.json")
     install = "ci" if (FRONT / "package-lock.json").exists() else "install"
     if subprocess.run([*command, install, "--ignore-scripts", "--no-audit", "--no-fund"], cwd=FRONT).returncode:
-        return record("error", "Frontend dependencies could not be installed. Inspect the npm output.")
+        raise RuntimeError("Frontend dependencies could not be installed. Inspect the npm output.")
+    return command
+
+
+def frontend_build():
+    name = "VibeCheck frontend production build"
+    def record(status, message):
+        print(message, flush=True)
+        report("frontend:build", name, status, message)
+        return 0 if status == "passed" else 1
+    try:
+        command = install_frontend()
+    except (RuntimeError, OSError) as exc:
+        return record("error", str(exc))
     built = subprocess.run([*command, "run", "build"], cwd=FRONT, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, encoding="utf-8", errors="replace")
     print(built.stdout, flush=True)
@@ -58,6 +67,17 @@ def frontend_build():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--browser-dates", action="store_true", help="Check rendered React dates in four time zones")
+    if parser.parse_args().browser_dates:
+        try:
+            install_frontend()
+            node = os.environ.get("MORPH_NODE") or "node"
+            return subprocess.run([node, str(HERE / "browser-dates.mjs")]).returncode
+        except (RuntimeError, OSError) as exc:
+            report("browser:setup", "VibeCheck product browser setup", "error", str(exc))
+            print(exc, file=sys.stderr)
+            return 1
     hints = os.environ.get("MORPH_CHANGED_PATHS")
     whole_commit = os.environ.get("MORPH_CHECK_SCOPE") == "head"
     if whole_commit:

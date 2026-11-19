@@ -12,6 +12,8 @@ The [signed-in model experiment](agent-proposal.md) follows a real calendar fail
 
 ## The product change and the factory change
 
+The [four-zone product browser experiment](product-browser.md) opens VibeCheck’s own React list and detail routes. Each calendar repair took the same 48 observations from 36 passes to 48, including 24 unchanged timestamp controls.
+
 The [single-file interactive replay](offline-replay.md) runs the actual signed client and service Wasm in a browser and lets you read the captured VibeCheck results offline. The [full desk restart experiment](desk-restart.md) checks the live product with its Python process and WebSocket publisher both restarted while the two reviewers keep their documents open.
 
 | Change | Original | With the patch or release |

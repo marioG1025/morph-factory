@@ -10,6 +10,8 @@
 
 ## What a buyer could use today
 
+A second test exercised both calendar patches on VibeCheck’s rendered React screens in four time zones. Each candidate fixed 12 of 48 observations, and all 24 timestamp controls continued to pass. Those cases were written after the proposals existed. This supplies a reproducible example of checking an agent’s patch independently. [Product browser experiment](experiments/product-browser.md)
+
 GitHub Copilot can investigate a repository, iterate on a branch and prepare a PR. A team can already review that diff with its usual CI. Sentry Seer starts from an observed issue, investigates its cause and can open a fix. PostHog Self-Driving investigates product signals and can turn actionable findings into PRs. Start a comparison with the workflow the team actually uses. [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/use-copilot-agents/research-plan-iterate) · [Sentry Seer](https://docs.sentry.io/api/seer/start-seer-issue-fix/) · [PostHog Self-Driving](https://posthog.com/blog/self-driving-ga)
 
 Morph’s offer is narrower. Bring an existing check, run it on the original and proposed trees, and inspect the same failure, diff and result before publishing. Research to date measures software behavior. Buyer demand, review-time savings and renewal remain open questions. [Original founder research](research.pdf)
