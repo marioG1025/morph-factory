@@ -1,5 +1,6 @@
 """Run a canary release of the factory Wasm using the pinned LLP fleet controller."""
 import argparse
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,7 +12,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT))
 from live_release import ensure_dependencies, node_binary
 
-PIN = "d14ebf9f8d17a45a3619231d4a9c63c00845bf96"
+PIN = json.loads((ROOT / "docs/upstream/inventory.json").read_text(encoding="utf-8"))["commit"]
 UPSTREAM = "https://github.com/nik190799/live-layer-protocol.git"
 
 

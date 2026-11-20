@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: nik190799/live-layer-protocol
-          ref: d14ebf9f8d17a45a3619231d4a9c63c00845bf96
+          ref: 7598909b2ae521ba9eb8ee12c825bcea912adede
           path: .ci/llp
           persist-credentials: false
       - name: Verify each vendored file and documented upstream delta

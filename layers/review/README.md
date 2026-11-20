@@ -41,4 +41,4 @@ npm ci --prefix layers/review
 npm run build --prefix layers/review
 ```
 
-[Browser integration tests](../../tests/browser/README.md) cover the real release stream, paired VibeCheck checks, and recovery after losing the publisher connection. This experiment uses the [AssemblyScript SDK from Nikhil’s pinned upstream revision](https://github.com/nik190799/live-layer-protocol/blob/d14ebf9f8d17a45a3619231d4a9c63c00845bf96/sdk/assemblyscript/llp.ts).
+[Browser integration tests](../../tests/browser/README.md) cover the real release stream, paired VibeCheck checks, and recovery after losing the publisher connection. This experiment uses the [AssemblyScript SDK from Nikhil’s pinned upstream revision](https://github.com/nik190799/live-layer-protocol/blob/7598909b2ae521ba9eb8ee12c825bcea912adede/sdk/assemblyscript/llp.ts).

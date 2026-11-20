@@ -2,7 +2,7 @@
 
 ## Live Layer Protocol
 
-Nikhil Ajay Kadalge authored Live Layer Protocol. Morph Factory uses its Apache License 2.0 reference implementation at [d14ebf9](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96).
+Nikhil Ajay Kadalge authored Live Layer Protocol. Morph Factory uses its Apache License 2.0 reference implementation at [7598909](https://github.com/nik190799/live-layer-protocol/tree/7598909b2ae521ba9eb8ee12c825bcea912adede).
 
 | Upstream component | How Morph uses it |
 | --- | --- |
@@ -18,7 +18,7 @@ To compare the inventory against upstream Git objects, use a local clone contain
 
 The browser lab contains the reference JavaScript host in `ui/lab/llp-core.js` and the precompiled task layers `tasks.wasm`, `tasks_v2.wasm`, and `tasks_trap.wasm`. The additional `rehearsal_v2.ts` and compiled module derive from the upstream v2 task layer and add a controlled test failure for rehearsal. The local publisher signs with a new key each lab session. The [upstream license](ui/lab/LICENSE.txt) accompanies these files.
 
-Read the [protocol specification](https://github.com/nik190799/live-layer-protocol/blob/d14ebf9f8d17a45a3619231d4a9c63c00845bf96/SPEC.md), [server and client notes](https://github.com/nik190799/live-layer-protocol/blob/d14ebf9f8d17a45a3619231d4a9c63c00845bf96/docs/HOSTS.md), and [the author's paper](https://doi.org/10.5281/zenodo.24349382).
+Read the [protocol specification](https://github.com/nik190799/live-layer-protocol/blob/7598909b2ae521ba9eb8ee12c825bcea912adede/SPEC.md), [server and client notes](https://github.com/nik190799/live-layer-protocol/blob/7598909b2ae521ba9eb8ee12c825bcea912adede/docs/HOSTS.md), and [the author's paper](https://doi.org/10.5281/zenodo.24349382).
 
 ## VibeCheck
 

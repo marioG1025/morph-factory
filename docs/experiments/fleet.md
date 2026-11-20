@@ -12,11 +12,11 @@ With Python 3.11+, Git and Node 22+ installed, run this command from the factory
 python scripts/fleet/run.py
 ```
 
-The runner fetches the [exact upstream revision](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96). To use an existing LLP clone, pass `--upstream /path/to/live-layer-protocol`. It reads the committed files, uses the factory’s locked WebSocket dependency, generates temporary keys and opens ephemeral loopback ports. Each line of output records one observation.
+The runner fetches the [exact upstream revision](https://github.com/nik190799/live-layer-protocol/tree/7598909b2ae521ba9eb8ee12c825bcea912adede). To use an existing LLP clone, pass `--upstream /path/to/live-layer-protocol`. It reads the committed files, uses the factory’s locked WebSocket dependency, generates temporary keys and opens ephemeral loopback ports. Each line of output records one observation.
 
 ## What the hosts reported
 
-The controller starts at version 100 in this experiment. Its sequence advances across both channels.
+The recorded run used [LLP d14ebf9](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96). The controller starts at version 100 in this experiment. Its sequence advances across both channels.
 
 | Stage | Preview observer | Stable canary | Other stable desk | Observation |
 | --- | --- | --- | --- | --- |

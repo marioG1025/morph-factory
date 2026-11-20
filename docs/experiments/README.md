@@ -1,5 +1,7 @@
 # Morph Factory experiment notebook
 
+The November 20 [upstream update](upstream-update.md) records which parts of Nikhil’s reference implementation changed, how a renderer can preserve text during a swap, and what passed on the factory and VibeCheck.
+
 **Question.** Can an operator approve a new server operation while someone is reviewing a real product patch, and immediately use it from the same browser document?
 
 **Observed.** On the pinned VibeCheck draft, both open tabs gained Compare results after approval. The browser test checks the original document, selected pane and draft identity, then invokes a real product comparison. The approved server module and the browser module appear together in a signed release. [Browser scenarios](../../tests/browser/README.md) · [Portable example receipt](receipts/vibecheck-calendar.json)

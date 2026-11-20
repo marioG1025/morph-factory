@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/nik190799/live-layer-protocol",
-  "commit": "d14ebf9f8d17a45a3619231d4a9c63c00845bf96",
+  "commit": "7598909b2ae521ba9eb8ee12c825bcea912adede",
   "files": [
     {
       "local": "LICENSE",
@@ -30,7 +30,7 @@
     {
       "local": "runtime/vendor/llp/llp-core.js",
       "source": "host/llp-core.js",
-      "sha256": "93ebfbdd669c9af80e8210a29f695ae5b5ef6b68fcc2ed86d891c44e032ace91"
+      "sha256": "fb4f2ad37c7d3bee285f0577055d38a6b5a06b71bdd90d42ebe74fb7abf6f736"
     },
     {
       "local": "runtime/vendor/llp/llp.ts",
@@ -62,7 +62,7 @@
     {
       "local": "ui/lab/llp-core.js",
       "source": "host/llp-core.js",
-      "sha256": "93ebfbdd669c9af80e8210a29f695ae5b5ef6b68fcc2ed86d891c44e032ace91"
+      "sha256": "fb4f2ad37c7d3bee285f0577055d38a6b5a06b71bdd90d42ebe74fb7abf6f736"
     },
     {
       "local": "ui/lab/rehearsal_v2.ts",

@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 from live_release import ensure_dependencies, node_binary
 
 UPSTREAM = "https://github.com/nik190799/live-layer-protocol.git"
-REVISION = "d14ebf9f8d17a45a3619231d4a9c63c00845bf96"
+REVISION = json.loads((ROOT / "docs/upstream/inventory.json").read_text(encoding="utf-8"))["commit"]
 
 
 def export_upstream(tmp, checkout):

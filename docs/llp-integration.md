@@ -1,6 +1,6 @@
 # Live Layer Protocol in Morph Factory
 
-Morph Factory is a local Git review application. We used Nikhil Ajay Kadalge’s LLP reference implementation to make **Change review** an updatable part of the factory itself. The operator can introduce a server-backed comparison tool to an existing product draft while its verification command is still running. The target product only needs a Git checkout and a usable check command. [Pinned LLP reference](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96) · [Watch the recorded update](../README.md#try-it-on-a-real-product)
+Morph Factory is a local Git review application. We used Nikhil Ajay Kadalge’s LLP reference implementation to make **Change review** an updatable part of the factory itself. The operator can introduce a server-backed comparison tool to an existing product draft while its verification command is still running. The target product only needs a Git checkout and a usable check command. [Pinned LLP reference](https://github.com/nik190799/live-layer-protocol/tree/7598909b2ae521ba9eb8ee12c825bcea912adede) · [Watch the recorded update](../README.md#try-it-on-a-real-product)
 
 ## Follow one release
 

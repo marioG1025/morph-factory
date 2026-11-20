@@ -4,7 +4,7 @@
 
 ## How long activity was observed
 
-The local runs overlapped on one Windows workstation. The timestamps below are UTC on November 19, 2026. Each observation span includes the planned waits between samples. Around ten hours separate the last observations and the final records. The logs provide no evidence of repeated activity in that gap, so these runs do not establish four uninterrupted hours of operation.
+These measurements used [LLP d14ebf9](https://github.com/nik190799/live-layer-protocol/tree/d14ebf9f8d17a45a3619231d4a9c63c00845bf96). The local runs overlapped on one Windows workstation. The timestamps below are UTC on November 19, 2026. Each observation span includes the planned waits between samples. Around ten hours separate the last observations and the final records. The logs provide no evidence of repeated activity in that gap, so these runs do not establish four uninterrupted hours of operation.
 
 | Local run | Start | Last observed | Span to observation | Final record | Gap to final record |
 | --- | --- | --- | ---: | --- | ---: |
