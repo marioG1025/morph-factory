@@ -119,7 +119,9 @@ export async function startHost(stateDir, {tokenTtlMs = 3600000} = {}) {
     const sourceRevision = lane.kv.rev;
     envelope.serverRehearsal = await rehearseServer({current: tenant.releases.get(null), snapshot: [...lane.kv],
       proposed: envelope, blob, publicKey, privateKey});
-    cached = {digest, sourceRevision, envelope};
+    // A transient worker failure must leave the same candidate available for a
+    // fresh operator rehearsal. Only reuse a successful signed proof.
+    if (envelope.serverRehearsal.ok) cached = {digest, sourceRevision, envelope};
     return envelope;
   };
   const commit = async envelope => {

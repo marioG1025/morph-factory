@@ -2,6 +2,12 @@ import { LiveHost, canonical, sha256, verifyManifest } from "/vendor/llp/llp-cor
 import { connectServer } from "/vendor/llp/remote-client.mjs";
 import { paintReview } from "./review-renderer.js";
 
+class ReviewHost extends LiveHost {
+  // Drop the retired guest's worker and its Wasm memory reservation at each
+  // swap. LLP still retains the previous module hashes for rollback.
+  retire(_slot, previous) { previous.box.kill(); }
+}
+
 const $ = id => document.getElementById(id);
 const desk = window.morphDesk;
 const slot = "review";
@@ -224,7 +230,7 @@ async function connect() {
     const next = await request("/api/live/session");
     if (destroyed) return;
     if (!host) {
-      host = new LiveHost({app: next.app, trustedKeys: [next.publicKey], onRender: render,
+      host = new ReviewHost({app: next.app, trustedKeys: [next.publicKey], onRender: render,
         onLog: event => {
           if (event.msg.includes("server: unauthorized:")) {
             if (!credentialsExpired) record("Session credentials expired. Reconnecting.");
@@ -284,11 +290,12 @@ async function rehearse() {
   if (candidate.digest !== fullDigest) throw Error("The candidate manifest digest does not match its contents.");
   const {sig: receiptSignature, ...receipt} = candidate.serverRehearsal || {};
   if (!receiptSignature || receipt.manifestDigest !== fullDigest || receipt.baseVersion !== initialVersion ||
-      receipt.version !== candidate.manifest.version || receipt.release !== "compare" || !receipt.ok ||
+      receipt.version !== candidate.manifest.version || receipt.release !== "compare" ||
       !await verifyManifest(receipt, receiptSignature, session.publicKey)) {
     throw Error("The server rehearsal did not supply a passing signed receipt for this release.");
   }
-  const shadow = new LiveHost({app: session.app, trustedKeys: [session.publicKey]});
+  if (!receipt.ok) throw Error("Server rehearsal failed: " + (receipt.error || "A required check failed."));
+  const shadow = new ReviewHost({app: session.app, trustedKeys: [session.publicKey]});
   const fetchBlob = async hash => {
     const res = await fetch("/api/live/blob/" + hash);
     if (!res.ok) throw Error("Missing rehearsal layer " + hash.slice(0, 12));

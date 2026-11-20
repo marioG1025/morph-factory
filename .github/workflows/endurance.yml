@@ -34,6 +34,8 @@ jobs:
           cd tests/browser
           npm ci --ignore-scripts
           npx playwright install --with-deps chromium
+      - name: Rehearse release 124 on the original two sockets
+        run: node --test tests/browser/release-turnover.mjs
       - name: Approve, compare, verify delivery and restore once per minute
         env:
           MORPH_SOAK_MINUTES: ${{ inputs.minutes }}

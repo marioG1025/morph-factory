@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { startHost } from "../review-host.mjs";
 import { canonical, generatePublisherKey, LiveHost, sha256, signManifest, verifyManifest } from "../vendor/llp/llp-core.js";
 import { connectServer } from "../vendor/llp/remote-client.mjs";
+import { ServerLiveHost } from "../vendor/llp/server-host.mjs";
 import { rehearseServer } from "../rehearsal.mjs";
 
 async function until(condition, description) {
@@ -16,6 +17,26 @@ async function until(condition, description) {
     await delay(20);
   }
 }
+
+test("the same candidate can be rehearsed again after a transient server worker failure", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "morph-retry-rehearsal-"));
+  const server = await startHost(directory);
+  t.after(async () => { server.close(); await rm(directory, {recursive:true, force:true}); });
+  const failure = t.mock.method(ServerLiveHost.prototype, "invoke", () => { throw Error("Temporary worker failure"); });
+  const first = await server.command({op:"candidate"});
+  assert.equal(first.serverRehearsal.ok, false);
+  assert.match(first.serverRehearsal.error, /Temporary worker failure/);
+  await assert.rejects(server.command({op:"approve", expectedVersion:1, expectedDigest:first.digest}), /rehearsal/);
+  assert.equal(server.status().version, 1);
+  failure.mock.restore();
+  const second = await server.command({op:"candidate"});
+  assert.equal(second.digest, first.digest);
+  assert.equal(second.serverRehearsal.ok, true);
+  const cached = await server.command({op:"candidate"});
+  assert.deepEqual(cached.serverRehearsal, second.serverRehearsal);
+  const approved = await server.command({op:"approve", expectedVersion:1, expectedDigest:second.digest});
+  assert.equal(approved.version, 2);
+});
 
 function openClient(session, watch) {
   const host = new LiveHost({app: session.app, trustedKeys: [session.publicKey]});

@@ -15,7 +15,7 @@ if (!Number.isFinite(duration) || duration < 0 || !Number.isFinite(interval) || 
 const log = (kind, data) => console.log(JSON.stringify({at:new Date().toISOString(), kind, ...data}));
 const sha = text => createHash("sha256").update(text).digest("hex");
 const desk = await startDesk();
-let browser;
+let browser, pages = [], phase = "open drafts", lastRehearsal;
 const started = Date.now();
 let completed = 0;
 try {
@@ -32,7 +32,13 @@ try {
       constructor(...args) { super(...args); window.soakObserverSocket = this; }
     };
   });
-  const pages = await Promise.all(contexts.map(context => context.newPage()));
+  pages = await Promise.all(contexts.map(context => context.newPage()));
+  pages[0].on("response", async response => {
+    if (new URL(response.url()).pathname !== "/api/live/candidate") return;
+    const body = await response.json().catch(() => null);
+    const proof = body?.serverRehearsal;
+    lastRehearsal = {http:response.status(), version:proof?.version, passed:proof?.ok, reason:proof?.error || body?.error};
+  });
   const errors = [];
   let peerPosts = 0, reportReads = 0, stateReads = 0, signals = [];
   pages[1].on("request", req => {
@@ -63,6 +69,7 @@ try {
     const began = performance.now();
     const priorReports = reportReads, priorStates = stateReads;
     signals = [];
+    phase = "disconnect observer";
     const missed = cycle % offlineEvery === 0;
     if (missed) {
       // Close the observer's real, test-owned socket. Network emulation alone can
@@ -72,11 +79,20 @@ try {
       await contexts[1].setOffline(true);
       await active.waitForFunction(async () => (await (await fetch("/api/live/status")).json()).connected === 1);
     }
+    phase = "rehearse";
+    lastRehearsal = undefined;
     await active.locator("#rehearse-comparison").click();
-    await active.waitForFunction(() => document.querySelector("#release-feedback").textContent.includes("Rehearsal passed"));
+    await active.waitForFunction(() => {
+      const feedback = document.querySelector("#release-feedback");
+      return feedback.dataset.error === "true" || feedback.textContent.includes("Rehearsal passed");
+    });
+    const feedback = await active.locator("#release-feedback").textContent();
+    assert.match(feedback, /Rehearsal passed/, `Cycle ${cycle} rehearsal: ${feedback}`);
+    phase = "approve";
     await active.locator("#approve-comparison").click();
     await active.locator("#layer-compare:visible").waitFor({timeout:20000});
     assert.equal(await active.locator("#layer-checks").getAttribute("aria-pressed"), "true");
+    phase = "compare";
     const whenCompared = active.waitForResponse(r => r.url().endsWith("/api/compare") && r.request().method() === "POST", {timeout:90000});
     await active.locator("#layer-compare").click();
     const response = await whenCompared;
@@ -88,6 +104,7 @@ try {
     assert.equal(result.summary.regressed, 0);
     assert.equal(result.candidate.status, "passed");
     assert.match(result.run, /^[0-9a-f]{32}$/);
+    phase = "receive saved report";
     if (missed) {
       assert.equal((await (await active.request.get(new URL("/api/live/status", desk.url).href)).json()).connected, 1);
       assert.equal(await observer.locator("#layer-compare").count(), 0);
@@ -101,6 +118,7 @@ try {
     assert.equal(reportReads - priorReports, 1);
     assert.equal(stateReads - priorStates, 0);
     assert.ok(signals.some(signal => signal.run === result.run && signal.full === missed), "Observer received matching LLP marker");
+    phase = "restore";
     await active.locator("#restore-review").click();
     await Promise.all(pages.map(page => page.locator("#layer-compare").waitFor({state:"hidden",timeout:20000})));
     const final = (await (await active.request.get(new URL("/api/state", desk.url).href)).json()).draft;
@@ -118,6 +136,14 @@ try {
     await delay(Math.min(interval * 1000, left));
   } while (Date.now() < started + duration * 60000);
   log("complete", {cycles:completed, elapsedSeconds:Math.round((Date.now()-started)/1000)});
+} catch (error) {
+  const documents = await Promise.all(pages.map(page => page.evaluate(() => ({
+    release:document.querySelector("#live-connection")?.textContent,
+    feedback:document.querySelector("#release-feedback")?.textContent,
+    events:[...document.querySelectorAll("#release-log li")].slice(0, 3).map(row => row.textContent)
+  })).catch(() => null)));
+  log("failure", {cycle:completed+1, phase, lastRehearsal, documents, error:error.message.slice(0, 500)});
+  throw error;
 } finally {
   await browser?.close();
   await desk.close();
