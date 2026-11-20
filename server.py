@@ -8,6 +8,7 @@ import mimetypes
 import os
 import re
 import secrets
+import socket
 from pathlib import Path, PureWindowsPath
 import shutil
 import subprocess
@@ -42,8 +43,12 @@ class DeskHTTPServer(ThreadingHTTPServer):
     # Several fresh browser tabs can request their scripts and styles at once.
     # The five queued connections on Python 3.11 can drop part of the page.
     request_queue_size = 128
+    allow_reuse_port = False
+    allow_reuse_address = os.name != "nt"
 
     def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         # The public URL and Host checks use the bound numeric loopback address.
         # A reverse DNS lookup here blocked startup for 35 s on macOS runners.
         TCPServer.server_bind(self)

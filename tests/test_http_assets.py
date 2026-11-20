@@ -10,6 +10,14 @@ from server import DeskHTTPServer, RequestHandler
 
 
 class BrowserAssetTypes(unittest.TestCase):
+    def test_only_one_listener_owns_the_printed_desk_url(self):
+        with DeskHTTPServer(("127.0.0.1", 0), RequestHandler) as original:
+            address = original.server_address
+            with self.assertRaises(OSError), DeskHTTPServer(address, RequestHandler):
+                pass
+        with DeskHTTPServer(address, RequestHandler) as reopened:
+            self.assertEqual(reopened.server_port, address[1])
+
     def test_simultaneous_cold_tabs_can_queue_their_initial_requests(self):
         # Model two tabs each opening six HTTP/1 connections before the accept loop drains them.
         with DeskHTTPServer(("127.0.0.1", 0), RequestHandler) as http, ExitStack() as clients:
