@@ -3,7 +3,7 @@ import { LiveHost, generatePublisherKey, sha256, signManifest } from "./llp-core
 const el = id => document.getElementById(id);
 const notice = message => { el("status").textContent = message; };
 const layers = new Map();
-let host, key, release = 1, sequence = 0, busy = true, recoveries = 0;
+let host, key, release = 1, sequence = 0, phase = "starting", recoveries = 0;
 
 function log(kind, message) {
   const line = document.createElement("li");
@@ -13,8 +13,11 @@ function log(kind, message) {
 }
 
 function refresh() {
+  const busy = phase !== "idle";
   el("upgrade").disabled = busy || release === 2;
-  el("fail").disabled = el("add").disabled = el("draft").disabled = busy;
+  el("fail").disabled = el("add").disabled = busy;
+  const draft = el("draft");
+  draft.disabled = busy && phase !== "upgrade";
   el("version").textContent = "Version " + release + " is live";
   el("tasks").replaceChildren();
   for (let i = 0; i < Number(host.kv.get("tasks.n") || 0); i++) {
@@ -27,16 +30,17 @@ function refresh() {
     row.onclick = () => run(async () => { await host.dispatch("main", "t:" + i); });
     el("tasks").append(row);
   }
-  el("draft").value = host.kv.get("draft") || "";
+  const note = host.bound("draft") ?? "";
+  if (draft.value !== note) draft.value = note;
 }
 
-async function run(action) {
-  if (busy) return;
-  busy = true;
+async function run(action, nextPhase = "action") {
+  if (phase !== "idle") return;
+  phase = nextPhase;
   refresh();
   try { await action(); }
   catch (error) { notice(error.message); log("error", error.message); }
-  finally { busy = false; refresh(); }
+  finally { phase = "idle"; refresh(); }
 }
 
 async function publish(name) {
@@ -56,19 +60,21 @@ function checklist() {
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
+el("draft").disabled = true;
 el("draft").oninput = event => host.setBound("draft", event.target.value);
 el("add").onclick = () => run(async () => { await host.dispatch("main", "add"); });
 el("draft").onkeydown = event => { if (event.key === "Enter") el("add").click(); };
 el("upgrade").onclick = () => run(async () => {
-  const before = JSON.stringify([checklist(), host.kv.get("draft")]);
+  const before = JSON.stringify(checklist());
+  notice("Installing version 2. You can keep typing in the unfinished note.");
   const {ms} = await publish("tasks_v2");
   release = 2;
-  if (before !== JSON.stringify([checklist(), host.kv.get("draft")])) throw Error("Checklist continuity check failed.");
-  notice("Version 2 accepted in " + Math.round(ms) + " ms. Task text, completion flags and the unfinished note match the previous version.");
-});
+  if (before !== JSON.stringify(checklist())) throw Error("Checklist continuity check failed.");
+  notice("Version 2 accepted in " + Math.round(ms) + " ms. Your tasks and completion flags are preserved. The note keeps your latest edit.");
+}, "upgrade");
 el("fail").onclick = () => run(async () => {
   const before = JSON.stringify(checklist());
-  const oldDraft = String(host.kv.get("draft") || "");
+  const oldDraft = host.bound("draft") ?? "";
   const baseline = host.slots.get("main").hash;
   const count = recoveries;
   await publish(release === 1 ? "tasks_trap" : "rehearsal_v2");
@@ -82,7 +88,7 @@ el("fail").onclick = () => run(async () => {
     throw Error("The expected rollback and state checks did not all pass. See host events.");
   }
   notice("The test Add failed. LLP restored the previous layer. Your checklist matches its pre-test state, and your note is back in the editor.");
-});
+}, "rehearsal");
 
 try {
   key = await generatePublisherKey();
@@ -93,6 +99,7 @@ try {
     layers.set(name, {bytes, hash: await sha256(bytes)});
   }
   host = new LiveHost({app: "morph.factory.lab", trustedKeys: [key.publicJwk],
+    onRender: () => { if (phase === "upgrade") refresh(); },
     onLog: event => { log(event.kind, event.msg); if (event.kind === "rollback") recoveries++; },
     capabilities: { haptic: () => undefined }});
   await publish("tasks");
@@ -101,7 +108,7 @@ try {
     await host.dispatch("main", "add");
   }
   await host.dispatch("main", "t:0");
-  busy = false;
+  phase = "idle";
   refresh();
   notice("Local publisher connected. Edit the checklist to begin.");
   window.addEventListener("pagehide", () => host.close(), {once:true});
