@@ -62,6 +62,8 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-open", action="store_true")
     args = parser.parse_args()
+    if not 0 <= args.port <= 65535:
+        parser.error("Port must be between 0 and 65535.")
     url = f"http://127.0.0.1:{args.port}/"
     repo = args.repo or (args.state_dir / "examples" / "VibeCheck")
     if args.port and matching_listener(args.port, repo, args.state_dir):
