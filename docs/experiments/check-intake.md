@@ -12,6 +12,18 @@ Click **Check current commit** under **Findings**, expand a failure, then choose
 
 Project commands must work from a clean checkout. The desk understands failure names in native Python unittest output and in the same `MORPH_CASE_REPORT` JSONL format used by Compare results. The [unittest adapter](../../scripts/check-unittest.py) also reports structured fixture errors, skipped methods and empty discovery. Commands that report only a nonzero exit code display that outcome and their local output. A missing executable, a malformed case report, a timeout or an empty suite gets a diagnostic.
 
+## Use an existing JUnit reporter
+
+From the factory root, this POSIX example runs Node’s built-in test runner in each clean product checkout. **Check current commit** can turn a named failure into a proposal. **Compare results** then shows which tests the candidate changed.
+
+```sh
+python3 server.py --repo /path/to/node-product --check \
+  python3 "$PWD/scripts/check-junit.py" --report junit.xml -- \
+  node --test --test-reporter=junit --test-reporter-destination=junit.xml
+```
+
+For a project that already has pytest installed, use `python3 -m pytest --junitxml=junit.xml` after the separator. Configure any required project dependencies as part of your trusted command. The reporter must write fresh XML to the selected checkout-relative path. A missing, stale, empty or malformed report returns a collection error. The adapter preserves a nonzero command exit and treats failures in XML as failures even when the command exits zero. Suite, class, source file and case name identify a test. Repeated identical names use their occurrence order. Suites exceeding the desk’s 1,000-case or 1 MiB limit return aggregate counts. [JUnit adapter](../../scripts/check-junit.py)
+
 ## What happened on two products
 
 | Product | Command against committed source | Observation |
