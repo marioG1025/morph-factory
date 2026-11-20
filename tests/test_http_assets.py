@@ -1,4 +1,6 @@
-"""The factory's browser entry points work independently of the OS MIME database."""
+"""The browser entry points must work on a cold, local desk."""
+from contextlib import ExitStack
+import socket
 import threading
 import unittest
 from unittest.mock import patch
@@ -8,6 +10,12 @@ from server import DeskHTTPServer, RequestHandler
 
 
 class BrowserAssetTypes(unittest.TestCase):
+    def test_simultaneous_cold_tabs_can_queue_their_initial_requests(self):
+        # Model two tabs each opening six HTTP/1 connections before the accept loop drains them.
+        with DeskHTTPServer(("127.0.0.1", 0), RequestHandler) as http, ExitStack() as clients:
+            for _ in range(12):
+                clients.enter_context(socket.create_connection(http.server_address, timeout=2))
+
     def test_loopback_listener_needs_no_reverse_dns(self):
         with patch("socket.getfqdn", side_effect=AssertionError("Unexpected DNS lookup")):
             with DeskHTTPServer(("127.0.0.1", 0), RequestHandler) as http:

@@ -39,6 +39,10 @@ LOGGER = logging.getLogger("morph")
 
 
 class DeskHTTPServer(ThreadingHTTPServer):
+    # Several fresh browser tabs can request their scripts and styles at once.
+    # The five queued connections on Python 3.11 can drop part of the page.
+    request_queue_size = 128
+
     def server_bind(self):
         # The public URL and Host checks use the bound numeric loopback address.
         # A reverse DNS lookup here blocked startup for 35 s on macOS runners.
