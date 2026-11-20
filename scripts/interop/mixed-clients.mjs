@@ -1,16 +1,18 @@
-// Run from the factory root. The LLP checkout supplies the two upstream Git objects.
+// Run from the factory root. The LLP checkout supplies the original client.
 import assert from "node:assert/strict";
 import {execFileSync} from "node:child_process";
 import {createHash} from "node:crypto";
+import {readFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {launchBrowser, startDesk} from "../../tests/browser/desk.mjs";
 
-if (process.argv.length !== 3) throw Error("Supply the path to a Live Layer Protocol clone containing both tested commits.");
+if (process.argv.length !== 3) throw Error("Supply the path to a Live Layer Protocol clone containing the original d14ebf9 client.");
 const upstream = resolve(process.argv[2]);
-const commits = ["d14ebf9f8d17a45a3619231d4a9c63c00845bf96", "7598909b2ae521ba9eb8ee12c825bcea912adede"];
-const cores = commits.map(commit => execFileSync("git", ["-C", upstream, "show", commit + ":host/llp-core.js"]));
+const inventory = JSON.parse(await readFile(new URL("../../docs/upstream/inventory.json",import.meta.url), "utf8"));
+const commits = ["d14ebf9f8d17a45a3619231d4a9c63c00845bf96", inventory.commit];
+const originalCore = execFileSync("git", ["-C", upstream, "show", commits[0] + ":host/llp-core.js"]);
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-const expected = cores.map(hash);
+const expected = [hash(originalCore), inventory.files.find(f => f.local === "runtime/vendor/llp/llp-core.js").sha256];
 assert.notEqual(expected[0], expected[1]);
 const route = "/vendor/llp/llp-core.js";
 const desk = await startDesk();
@@ -20,7 +22,7 @@ try {
   const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
   // Only this tab keeps the host core from the original version. Both receive
   // the shipping connection adapter, review Wasm and live server responses.
-  await contexts[0].route("**" + route, request => request.fulfill({contentType:"text/javascript", body:cores[0]}));
+  await contexts[0].route("**" + route, request => request.fulfill({contentType:"text/javascript", body:originalCore}));
   const pages = await Promise.all(contexts.map(context => context.newPage()));
   const counts = pages.map(() => ({posts:0, reads:0}));
   const pageErrors = [];

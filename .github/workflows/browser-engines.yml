@@ -43,6 +43,16 @@ jobs:
           cd tests/browser
           npm ci --ignore-scripts
           npx playwright install --with-deps "$MORPH_BROWSER_ENGINE"
+      - name: Fetch the upstream core used by the first factory desk
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: nik190799/live-layer-protocol
+          ref: d14ebf9f8d17a45a3619231d4a9c63c00845bf96
+          path: .ci/llp-first-desk
+          persist-credentials: false
+      - name: Compare between original and current LLP client tabs
+        timeout-minutes: 3
+        run: node scripts/interop/mixed-clients.mjs .ci/llp-first-desk
       - name: Approve, compare, restore and save in two open tabs
         id: acceptance
         timeout-minutes: 3
