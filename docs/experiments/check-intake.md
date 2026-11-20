@@ -26,6 +26,8 @@ For a project that already has pytest installed, use `python3 -m pytest --junitx
 
 ## What happened on two products
 
+We also ran the JUnit adapter on the factory's own tests in a disposable checkout. Pytest 9.2.0 reported seven named HTTP and relaunch checks. Node 24.22.1 reported ten named signed-host checks. All 17 passed. A separate Node fixture deliberately failed one application assertion, then used that same case identity to show the repair in Compare. [JUnit regression cases](../../tests/test_junit_check.py)
+
 | Product | Command against committed source | Observation |
 | --- | --- | --- |
 | VibeCheck at `6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24` | Existing VibeCheck check with whole-commit scope | Four date cases failed across list and detail views. The frontend build also failed. The first proposal named `EventsPage · 2026-05-16` and included the observed May 15 and expected May 16 dates. |
