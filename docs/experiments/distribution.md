@@ -53,3 +53,5 @@ python -B -u vibecheck.py --state-dir "Isolated desk state" --port 0 --no-open
 ```
 
 The default port 8765 already served an active desk during this run. Using an explicit scratch state directory and an ephemeral port kept that desk outside the test. The Windows double-click wrapper invokes the same `vibecheck.py` entry point with default options. This measurement covers the CLI launch, application workflow and restart.
+
+Relaunching VibeCheck on an occupied port reopens the existing browser desk only when its checkout, saved state directory and pinned Git revision match. The launcher reports a conflict for a different desk or an older instance that cannot identify its state directory. Use `--port 0` for another available port, or stop the existing process before reusing its port.

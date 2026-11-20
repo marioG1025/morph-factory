@@ -1,17 +1,49 @@
 """Start a local Morph Factory desk with the verified VibeCheck date repair ready for review."""
 import argparse
+from http.client import HTTPConnection, HTTPException
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import webbrowser
-from urllib.request import urlopen
-from server import DeskHTTPServer, open_desk, RequestHandler, default_state_dir, git_value
+from server import DeskHTTPServer, open_desk, RequestHandler, default_state_dir, desk_identity, git_value
 
 BASE = "6a2349d6ac2cb80ec5b32d46dee04b8f7d7bfb24"
 ROOT = Path(__file__).resolve().parent
 URL = "https://github.com/marioG1025/VibeCheck.git"
+
+
+def matching_listener(port, repo, state_dir):
+    """Return false for a free port, true for the requested desk, or explain the conflict."""
+    hint = f"Stop the listener on port {port} or launch with --port 0 to choose a free port."
+    connection = HTTPConnection("127.0.0.1", port, timeout=1.5)
+    try:
+        connection.request("GET", "/api/desk-identity")
+        response = connection.getresponse()
+        if response.status == 404 and response.getheader("Server", "").startswith("MorphFactory/"):
+            raise ValueError("An older Morph Factory desk cannot confirm its checkout and state directory. " + hint)
+        if response.status != 200:
+            raise ValueError("The running service could not confirm the requested desk. " + hint)
+        try:
+            identity = json.loads(response.read(4096))
+        except ValueError:
+            identity = None
+        if not isinstance(identity, dict) or not isinstance(identity.get("deskId"), str):
+            raise ValueError("The running service could not confirm the requested desk. " + hint)
+    except ConnectionRefusedError:
+        return False
+    except (OSError, HTTPException) as exc:
+        raise ValueError("Could not identify the running service. " + hint) from exc
+    finally:
+        connection.close()
+    root = Path(git_value(repo, "--show-toplevel")) if repo.is_dir() else repo
+    if identity["deskId"] != desk_identity(root, state_dir):
+        raise ValueError("The running desk uses a different checkout or state directory. " + hint)
+    if identity.get("head") != BASE:
+        raise ValueError("The running checkout is no longer at the VibeCheck example revision. " + hint)
+    return True
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -21,18 +53,13 @@ def main():
     parser.add_argument("--no-open", action="store_true")
     args = parser.parse_args()
     url = f"http://127.0.0.1:{args.port}/"
-    if args.port and not args.no_open:
-        try:
-            with urlopen(url + "api/state", timeout=0.8) as reply:
-                existing = json.load(reply)
-            match = (existing.get("scan") or {}).get("head") == BASE
-            if match and (args.repo is None or args.repo.resolve() == Path(existing["repo"]).resolve()):
-                print("Opening the running VibeCheck desk at " + url)
-                webbrowser.open(url)
-                return
-        except (OSError, ValueError, KeyError):
-            pass
     repo = args.repo or (args.state_dir / "examples" / "VibeCheck")
+    if args.port and matching_listener(args.port, repo, args.state_dir):
+        if args.no_open:
+            raise ValueError(f"The requested VibeCheck desk is already running at {url}")
+        print("Opening the running VibeCheck desk at " + url)
+        webbrowser.open(url)
+        return
     if args.repo is None and not repo.exists():
         repo.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix=".morph-setup-", dir=repo.parent) as staging:

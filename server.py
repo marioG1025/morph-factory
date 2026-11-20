@@ -71,6 +71,11 @@ def checkout_key(repo):
     return hashlib.sha256(os.path.normcase(str(repo)).encode()).hexdigest()
 
 
+def desk_identity(repo, state_dir):
+    paths = [os.path.normcase(str(Path(path).resolve())) for path in (repo, state_dir)]
+    return hashlib.sha256(os.fsencode("\0".join(paths))).hexdigest()
+
+
 @contextmanager
 def open_desk(repo, state_dir, command):
     """Hold ownership across draft loading, local writes and release-host restarts."""
@@ -111,6 +116,7 @@ def proposal_files(payload):
 class Desk:
     def __init__(self, repo, state_dir, command):
         self.repo = str(Path(git_value(repo, "--show-toplevel")).resolve())
+        self.launch_id = desk_identity(self.repo, state_dir)
         git_value(self.repo, "--verify", "HEAD")
         self.command = command
         self.check_key = hashlib.sha256(json.dumps(command).encode()).hexdigest() if command else None
@@ -539,6 +545,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/state":
             self.send_json(self.server.desk.state())
+            return
+        if path == "/api/desk-identity":
+            desk = self.server.desk
+            try:
+                self.send_json({"deskId":desk.launch_id, "head":git_value(desk.repo, "--verify", "HEAD")})
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                self.send_json({"error":str(exc)}, 400)
             return
         match = re.fullmatch(r"/api/comparisons/([0-9a-f]{32})", path)
         if match:
