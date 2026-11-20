@@ -1,0 +1,2331 @@
+{
+  "format": "morph-factory/endurance-v2",
+  "browser": {
+    "observationStartUtc": "2026-11-19T03:36:21.134Z",
+    "lastObservationUtc": "2026-11-19T07:00:58.271Z",
+    "observationSpanSeconds": 12277.137,
+    "finalizerUtc": "2026-11-19T17:07:49.069Z",
+    "lastObservationToFinalizerSeconds": 36410.798,
+    "recordedFinalTimerSeconds": 48690,
+    "cycleCount": 41,
+    "cycleEnds": {
+      "samples": 41,
+      "firstUtc": "2026-11-19T03:36:24.321Z",
+      "lastUtc": "2026-11-19T07:00:58.271Z",
+      "largestAdjacentGapSeconds": 308.327
+    },
+    "offlineSettingToggles": 13,
+    "cycles": [
+      {
+        "at": "2026-11-19T03:36:24.321Z",
+        "cycle": 1,
+        "elapsedMs": 3187,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 2,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T03:41:32.322Z",
+        "cycle": 2,
+        "elapsedMs": 2991,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 4,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T03:46:39.384Z",
+        "cycle": 3,
+        "elapsedMs": 2053,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 6,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T03:51:46.043Z",
+        "cycle": 4,
+        "elapsedMs": 1649,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 8,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T03:56:52.757Z",
+        "cycle": 5,
+        "elapsedMs": 1701,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 10,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:01:59.744Z",
+        "cycle": 6,
+        "elapsedMs": 1977,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 12,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T04:07:08.071Z",
+        "cycle": 7,
+        "elapsedMs": 3313,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 14,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:12:14.928Z",
+        "cycle": 8,
+        "elapsedMs": 1842,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 16,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:17:21.701Z",
+        "cycle": 9,
+        "elapsedMs": 1758,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 18,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T04:22:28.439Z",
+        "cycle": 10,
+        "elapsedMs": 1727,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 20,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:27:35.185Z",
+        "cycle": 11,
+        "elapsedMs": 1730,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 22,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:32:42.344Z",
+        "cycle": 12,
+        "elapsedMs": 2143,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 24,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T04:37:48.999Z",
+        "cycle": 13,
+        "elapsedMs": 1647,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 26,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:42:55.686Z",
+        "cycle": 14,
+        "elapsedMs": 1679,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 28,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:48:02.429Z",
+        "cycle": 15,
+        "elapsedMs": 1737,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 30,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T04:53:09.117Z",
+        "cycle": 16,
+        "elapsedMs": 1680,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 32,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T04:58:15.760Z",
+        "cycle": 17,
+        "elapsedMs": 1630,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 34,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:03:22.501Z",
+        "cycle": 18,
+        "elapsedMs": 1738,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 36,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T05:08:29.247Z",
+        "cycle": 19,
+        "elapsedMs": 1742,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 38,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:13:35.958Z",
+        "cycle": 20,
+        "elapsedMs": 1696,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 40,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:18:42.785Z",
+        "cycle": 21,
+        "elapsedMs": 1821,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 42,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T05:23:49.438Z",
+        "cycle": 22,
+        "elapsedMs": 1637,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 44,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:28:56.092Z",
+        "cycle": 23,
+        "elapsedMs": 1647,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 46,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:34:02.861Z",
+        "cycle": 24,
+        "elapsedMs": 1756,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 48,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T05:39:09.539Z",
+        "cycle": 25,
+        "elapsedMs": 1664,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 50,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:44:16.159Z",
+        "cycle": 26,
+        "elapsedMs": 1619,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 52,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:49:22.901Z",
+        "cycle": 27,
+        "elapsedMs": 1739,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 54,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T05:54:29.559Z",
+        "cycle": 28,
+        "elapsedMs": 1647,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 56,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T05:59:36.219Z",
+        "cycle": 29,
+        "elapsedMs": 1647,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 58,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:04:43.206Z",
+        "cycle": 30,
+        "elapsedMs": 1972,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 60,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T06:09:49.953Z",
+        "cycle": 31,
+        "elapsedMs": 1740,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 62,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:14:56.612Z",
+        "cycle": 32,
+        "elapsedMs": 1651,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 64,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:20:03.430Z",
+        "cycle": 33,
+        "elapsedMs": 1802,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 66,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T06:25:10.111Z",
+        "cycle": 34,
+        "elapsedMs": 1679,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 68,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:30:16.751Z",
+        "cycle": 35,
+        "elapsedMs": 1635,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 70,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:35:23.507Z",
+        "cycle": 36,
+        "elapsedMs": 1741,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 72,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T06:40:30.179Z",
+        "cycle": 37,
+        "elapsedMs": 1667,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 74,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:45:36.807Z",
+        "cycle": 38,
+        "elapsedMs": 1620,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 76,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T06:50:43.632Z",
+        "cycle": 39,
+        "elapsedMs": 1822,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 78,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true
+      },
+      {
+        "at": "2026-11-19T06:55:50.265Z",
+        "cycle": 40,
+        "elapsedMs": 1633,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 80,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      },
+      {
+        "at": "2026-11-19T07:00:58.271Z",
+        "cycle": 41,
+        "elapsedMs": 2992,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 82,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false
+      }
+    ]
+  },
+  "mirroredBrowser": {
+    "observationStartUtc": "2026-11-19T04:33:00.570Z",
+    "lastObservationUtc": "2026-11-19T07:04:14.201Z",
+    "observationSpanSeconds": 9073.631,
+    "finalizerUtc": "2026-11-19T17:07:49.070Z",
+    "lastObservationToFinalizerSeconds": 36214.869,
+    "recordedFinalTimerSeconds": 45291,
+    "cycleCount": 31,
+    "cycleEnds": {
+      "samples": 31,
+      "firstUtc": "2026-11-19T04:33:03.834Z",
+      "lastUtc": "2026-11-19T07:04:14.201Z",
+      "largestAdjacentGapSeconds": 311.681
+    },
+    "offlineSettingToggles": 10,
+    "cycles": [
+      {
+        "at": "2026-11-19T04:33:03.834Z",
+        "cycle": 1,
+        "elapsedMs": 3264,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 2,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T04:38:05.746Z",
+        "cycle": 2,
+        "elapsedMs": 1892,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 4,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T04:43:07.623Z",
+        "cycle": 3,
+        "elapsedMs": 1866,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 6,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T04:48:09.425Z",
+        "cycle": 4,
+        "elapsedMs": 1799,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 8,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T04:53:11.256Z",
+        "cycle": 5,
+        "elapsedMs": 1819,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 10,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T04:58:13.170Z",
+        "cycle": 6,
+        "elapsedMs": 1911,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 12,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T05:03:15.124Z",
+        "cycle": 7,
+        "elapsedMs": 1946,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 14,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:08:17.091Z",
+        "cycle": 8,
+        "elapsedMs": 1960,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 16,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:13:19.936Z",
+        "cycle": 9,
+        "elapsedMs": 2839,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 18,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T05:18:22.484Z",
+        "cycle": 10,
+        "elapsedMs": 2545,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 20,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:23:24.514Z",
+        "cycle": 11,
+        "elapsedMs": 2020,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 22,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:28:26.431Z",
+        "cycle": 12,
+        "elapsedMs": 1908,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 24,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T05:33:28.291Z",
+        "cycle": 13,
+        "elapsedMs": 1849,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 26,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:38:30.238Z",
+        "cycle": 14,
+        "elapsedMs": 1940,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 28,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:43:32.144Z",
+        "cycle": 15,
+        "elapsedMs": 1899,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 30,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T05:48:34.114Z",
+        "cycle": 16,
+        "elapsedMs": 1959,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 32,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:53:35.983Z",
+        "cycle": 17,
+        "elapsedMs": 1865,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 34,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T05:58:37.903Z",
+        "cycle": 18,
+        "elapsedMs": 1910,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 36,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T06:03:39.734Z",
+        "cycle": 19,
+        "elapsedMs": 1820,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 38,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:08:41.625Z",
+        "cycle": 20,
+        "elapsedMs": 1881,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 40,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:13:43.543Z",
+        "cycle": 21,
+        "elapsedMs": 1910,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 42,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T06:18:45.378Z",
+        "cycle": 22,
+        "elapsedMs": 1831,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 44,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:23:47.235Z",
+        "cycle": 23,
+        "elapsedMs": 1849,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 46,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:28:49.941Z",
+        "cycle": 24,
+        "elapsedMs": 2705,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 48,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T06:33:51.901Z",
+        "cycle": 25,
+        "elapsedMs": 1958,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 50,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:38:53.761Z",
+        "cycle": 26,
+        "elapsedMs": 1852,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 52,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:43:55.674Z",
+        "cycle": 27,
+        "elapsedMs": 1906,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 54,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T06:48:57.516Z",
+        "cycle": 28,
+        "elapsedMs": 1834,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 56,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:53:59.361Z",
+        "cycle": 29,
+        "elapsedMs": 1837,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 58,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      },
+      {
+        "at": "2026-11-19T06:59:11.042Z",
+        "cycle": 30,
+        "elapsedMs": 11677,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 60,
+        "documentsPreserved": 2,
+        "observerMissedOffer": true,
+        "peerReceived": "full"
+      },
+      {
+        "at": "2026-11-19T07:04:14.201Z",
+        "cycle": 31,
+        "elapsedMs": 3143,
+        "fixed": 4,
+        "regressed": 0,
+        "release": 62,
+        "documentsPreserved": 2,
+        "observerMissedOffer": false,
+        "peerReceived": "delta"
+      }
+    ],
+    "fullSnapshots": 10,
+    "deltas": 21,
+    "revision": "db6f64a"
+  },
+  "initialWire": {
+    "startedUtc": "2026-11-19T03:36:49.278Z",
+    "updatedUtc": "2026-11-19T17:07:49.091Z",
+    "node": "v24.22.1",
+    "platform": "win32",
+    "releaseTransitions": 206,
+    "clientAcks": 412,
+    "stateChecks": 840,
+    "restarts": 2,
+    "briefReconnects": 22,
+    "idleEvictionsObserved": 1,
+    "tokenExpiryObserved": true,
+    "tokenRenewals": 1,
+    "compareGrants": 212,
+    "baselineRefusals": 208,
+    "events": [
+      {
+        "utc": "2026-11-19T03:36:49.454Z",
+        "event": "Two clients connected to the baseline release"
+      },
+      {
+        "utc": "2026-11-19T03:36:49.555Z",
+        "event": "Holding the active server worker idle for 165 seconds"
+      },
+      {
+        "utc": "2026-11-19T03:39:34.608Z",
+        "event": "An actual idle worker reloaded on a real remote call"
+      },
+      {
+        "utc": "2026-11-19T04:37:52.675Z",
+        "event": "A real token expired. A new bootstrap session reconnected the existing client host"
+      },
+      {
+        "utc": "2026-11-19T04:59:54.886Z",
+        "event": "Server restarted and both open client hosts resumed with the same signed release"
+      },
+      {
+        "utc": "2026-11-19T06:23:03.162Z",
+        "event": "Server restarted and both open client hosts resumed with the same signed release"
+      }
+    ],
+    "finalizerStatus": "passed",
+    "recordedFinalTimerSeconds": 48660,
+    "nativeSamples": {
+      "samples": 193,
+      "firstUtc": "2026-11-19T03:52:53.393Z",
+      "lastUtc": "2026-11-19T07:04:57.389Z",
+      "largestAdjacentGapSeconds": 60.105
+    },
+    "sampledTransitionRange": [
+      14,
+      205
+    ],
+    "nativeTransitionSamples": [
+      [
+        "2026-11-19T03:52:53.393Z",
+        14
+      ],
+      [
+        "2026-11-19T03:53:53.481Z",
+        15
+      ],
+      [
+        "2026-11-19T03:54:53.507Z",
+        16
+      ],
+      [
+        "2026-11-19T03:55:53.537Z",
+        17
+      ],
+      [
+        "2026-11-19T03:56:53.565Z",
+        18
+      ],
+      [
+        "2026-11-19T03:57:53.601Z",
+        19
+      ],
+      [
+        "2026-11-19T03:58:53.697Z",
+        20
+      ],
+      [
+        "2026-11-19T03:59:53.725Z",
+        21
+      ],
+      [
+        "2026-11-19T04:00:53.739Z",
+        22
+      ],
+      [
+        "2026-11-19T04:01:53.776Z",
+        23
+      ],
+      [
+        "2026-11-19T04:02:53.798Z",
+        24
+      ],
+      [
+        "2026-11-19T04:03:53.821Z",
+        25
+      ],
+      [
+        "2026-11-19T04:04:53.843Z",
+        26
+      ],
+      [
+        "2026-11-19T04:05:53.872Z",
+        27
+      ],
+      [
+        "2026-11-19T04:06:53.893Z",
+        28
+      ],
+      [
+        "2026-11-19T04:07:53.903Z",
+        29
+      ],
+      [
+        "2026-11-19T04:08:53.918Z",
+        30
+      ],
+      [
+        "2026-11-19T04:09:53.942Z",
+        31
+      ],
+      [
+        "2026-11-19T04:10:53.953Z",
+        32
+      ],
+      [
+        "2026-11-19T04:11:53.975Z",
+        33
+      ],
+      [
+        "2026-11-19T04:12:53.993Z",
+        34
+      ],
+      [
+        "2026-11-19T04:13:54.017Z",
+        35
+      ],
+      [
+        "2026-11-19T04:14:54.041Z",
+        36
+      ],
+      [
+        "2026-11-19T04:15:54.064Z",
+        37
+      ],
+      [
+        "2026-11-19T04:16:54.086Z",
+        38
+      ],
+      [
+        "2026-11-19T04:17:54.108Z",
+        39
+      ],
+      [
+        "2026-11-19T04:18:54.123Z",
+        40
+      ],
+      [
+        "2026-11-19T04:19:54.142Z",
+        41
+      ],
+      [
+        "2026-11-19T04:20:54.167Z",
+        42
+      ],
+      [
+        "2026-11-19T04:21:54.190Z",
+        43
+      ],
+      [
+        "2026-11-19T04:22:54.216Z",
+        44
+      ],
+      [
+        "2026-11-19T04:23:54.228Z",
+        45
+      ],
+      [
+        "2026-11-19T04:24:54.248Z",
+        46
+      ],
+      [
+        "2026-11-19T04:25:54.259Z",
+        47
+      ],
+      [
+        "2026-11-19T04:26:54.292Z",
+        48
+      ],
+      [
+        "2026-11-19T04:27:54.308Z",
+        49
+      ],
+      [
+        "2026-11-19T04:28:54.323Z",
+        50
+      ],
+      [
+        "2026-11-19T04:29:54.342Z",
+        51
+      ],
+      [
+        "2026-11-19T04:30:54.371Z",
+        52
+      ],
+      [
+        "2026-11-19T04:31:54.393Z",
+        53
+      ],
+      [
+        "2026-11-19T04:32:54.417Z",
+        54
+      ],
+      [
+        "2026-11-19T04:33:54.439Z",
+        55
+      ],
+      [
+        "2026-11-19T04:34:54.466Z",
+        56
+      ],
+      [
+        "2026-11-19T04:35:54.488Z",
+        57
+      ],
+      [
+        "2026-11-19T04:36:54.519Z",
+        58
+      ],
+      [
+        "2026-11-19T04:37:54.538Z",
+        59
+      ],
+      [
+        "2026-11-19T04:38:54.554Z",
+        60
+      ],
+      [
+        "2026-11-19T04:39:54.586Z",
+        61
+      ],
+      [
+        "2026-11-19T04:40:54.597Z",
+        62
+      ],
+      [
+        "2026-11-19T04:41:54.627Z",
+        63
+      ],
+      [
+        "2026-11-19T04:42:54.652Z",
+        64
+      ],
+      [
+        "2026-11-19T04:43:54.664Z",
+        65
+      ],
+      [
+        "2026-11-19T04:44:54.681Z",
+        66
+      ],
+      [
+        "2026-11-19T04:45:54.695Z",
+        67
+      ],
+      [
+        "2026-11-19T04:46:54.706Z",
+        68
+      ],
+      [
+        "2026-11-19T04:47:54.723Z",
+        69
+      ],
+      [
+        "2026-11-19T04:48:54.748Z",
+        70
+      ],
+      [
+        "2026-11-19T04:49:54.761Z",
+        71
+      ],
+      [
+        "2026-11-19T04:50:54.785Z",
+        72
+      ],
+      [
+        "2026-11-19T04:51:54.809Z",
+        73
+      ],
+      [
+        "2026-11-19T04:52:54.833Z",
+        74
+      ],
+      [
+        "2026-11-19T04:53:54.857Z",
+        75
+      ],
+      [
+        "2026-11-19T04:54:54.874Z",
+        76
+      ],
+      [
+        "2026-11-19T04:55:54.891Z",
+        77
+      ],
+      [
+        "2026-11-19T04:56:54.918Z",
+        78
+      ],
+      [
+        "2026-11-19T04:57:54.937Z",
+        79
+      ],
+      [
+        "2026-11-19T04:58:54.954Z",
+        80
+      ],
+      [
+        "2026-11-19T04:59:54.970Z",
+        81
+      ],
+      [
+        "2026-11-19T05:00:54.994Z",
+        82
+      ],
+      [
+        "2026-11-19T05:01:55.016Z",
+        82
+      ],
+      [
+        "2026-11-19T05:02:55.027Z",
+        83
+      ],
+      [
+        "2026-11-19T05:03:55.041Z",
+        84
+      ],
+      [
+        "2026-11-19T05:04:55.052Z",
+        85
+      ],
+      [
+        "2026-11-19T05:05:55.078Z",
+        86
+      ],
+      [
+        "2026-11-19T05:06:55.113Z",
+        87
+      ],
+      [
+        "2026-11-19T05:07:55.132Z",
+        88
+      ],
+      [
+        "2026-11-19T05:08:55.143Z",
+        89
+      ],
+      [
+        "2026-11-19T05:09:55.158Z",
+        90
+      ],
+      [
+        "2026-11-19T05:10:55.177Z",
+        91
+      ],
+      [
+        "2026-11-19T05:11:55.199Z",
+        92
+      ],
+      [
+        "2026-11-19T05:12:55.209Z",
+        93
+      ],
+      [
+        "2026-11-19T05:13:55.229Z",
+        94
+      ],
+      [
+        "2026-11-19T05:14:55.247Z",
+        95
+      ],
+      [
+        "2026-11-19T05:15:55.258Z",
+        96
+      ],
+      [
+        "2026-11-19T05:16:55.275Z",
+        97
+      ],
+      [
+        "2026-11-19T05:17:55.285Z",
+        98
+      ],
+      [
+        "2026-11-19T05:18:55.312Z",
+        99
+      ],
+      [
+        "2026-11-19T05:19:55.331Z",
+        100
+      ],
+      [
+        "2026-11-19T05:20:55.349Z",
+        101
+      ],
+      [
+        "2026-11-19T05:21:55.368Z",
+        102
+      ],
+      [
+        "2026-11-19T05:22:55.404Z",
+        103
+      ],
+      [
+        "2026-11-19T05:23:55.425Z",
+        104
+      ],
+      [
+        "2026-11-19T05:24:55.452Z",
+        105
+      ],
+      [
+        "2026-11-19T05:25:55.469Z",
+        106
+      ],
+      [
+        "2026-11-19T05:26:55.486Z",
+        107
+      ],
+      [
+        "2026-11-19T05:27:55.510Z",
+        108
+      ],
+      [
+        "2026-11-19T05:28:55.535Z",
+        109
+      ],
+      [
+        "2026-11-19T05:29:55.552Z",
+        110
+      ],
+      [
+        "2026-11-19T05:30:55.574Z",
+        111
+      ],
+      [
+        "2026-11-19T05:31:55.596Z",
+        112
+      ],
+      [
+        "2026-11-19T05:32:55.615Z",
+        113
+      ],
+      [
+        "2026-11-19T05:33:55.646Z",
+        114
+      ],
+      [
+        "2026-11-19T05:34:55.669Z",
+        115
+      ],
+      [
+        "2026-11-19T05:35:55.703Z",
+        116
+      ],
+      [
+        "2026-11-19T05:36:55.717Z",
+        117
+      ],
+      [
+        "2026-11-19T05:37:55.732Z",
+        118
+      ],
+      [
+        "2026-11-19T05:38:55.745Z",
+        119
+      ],
+      [
+        "2026-11-19T05:39:55.756Z",
+        120
+      ],
+      [
+        "2026-11-19T05:40:55.778Z",
+        121
+      ],
+      [
+        "2026-11-19T05:41:55.790Z",
+        122
+      ],
+      [
+        "2026-11-19T05:42:55.806Z",
+        123
+      ],
+      [
+        "2026-11-19T05:43:55.830Z",
+        124
+      ],
+      [
+        "2026-11-19T05:44:55.850Z",
+        125
+      ],
+      [
+        "2026-11-19T05:45:55.873Z",
+        126
+      ],
+      [
+        "2026-11-19T05:46:55.892Z",
+        127
+      ],
+      [
+        "2026-11-19T05:47:55.912Z",
+        128
+      ],
+      [
+        "2026-11-19T05:48:55.935Z",
+        129
+      ],
+      [
+        "2026-11-19T05:49:55.954Z",
+        130
+      ],
+      [
+        "2026-11-19T05:50:55.970Z",
+        131
+      ],
+      [
+        "2026-11-19T05:51:55.985Z",
+        132
+      ],
+      [
+        "2026-11-19T05:52:56.005Z",
+        133
+      ],
+      [
+        "2026-11-19T05:53:56.026Z",
+        134
+      ],
+      [
+        "2026-11-19T05:54:56.037Z",
+        135
+      ],
+      [
+        "2026-11-19T05:55:56.054Z",
+        136
+      ],
+      [
+        "2026-11-19T05:56:56.064Z",
+        137
+      ],
+      [
+        "2026-11-19T05:57:56.096Z",
+        138
+      ],
+      [
+        "2026-11-19T05:58:56.117Z",
+        139
+      ],
+      [
+        "2026-11-19T05:59:56.133Z",
+        140
+      ],
+      [
+        "2026-11-19T06:00:56.143Z",
+        141
+      ],
+      [
+        "2026-11-19T06:01:56.156Z",
+        142
+      ],
+      [
+        "2026-11-19T06:02:56.175Z",
+        143
+      ],
+      [
+        "2026-11-19T06:03:56.193Z",
+        144
+      ],
+      [
+        "2026-11-19T06:04:56.217Z",
+        145
+      ],
+      [
+        "2026-11-19T06:05:56.228Z",
+        146
+      ],
+      [
+        "2026-11-19T06:06:56.242Z",
+        147
+      ],
+      [
+        "2026-11-19T06:07:56.271Z",
+        148
+      ],
+      [
+        "2026-11-19T06:08:56.294Z",
+        149
+      ],
+      [
+        "2026-11-19T06:09:56.308Z",
+        150
+      ],
+      [
+        "2026-11-19T06:10:56.325Z",
+        151
+      ],
+      [
+        "2026-11-19T06:11:56.350Z",
+        152
+      ],
+      [
+        "2026-11-19T06:12:56.368Z",
+        153
+      ],
+      [
+        "2026-11-19T06:13:56.381Z",
+        154
+      ],
+      [
+        "2026-11-19T06:14:56.391Z",
+        155
+      ],
+      [
+        "2026-11-19T06:15:56.413Z",
+        156
+      ],
+      [
+        "2026-11-19T06:16:56.518Z",
+        157
+      ],
+      [
+        "2026-11-19T06:17:56.531Z",
+        158
+      ],
+      [
+        "2026-11-19T06:18:56.544Z",
+        159
+      ],
+      [
+        "2026-11-19T06:19:56.568Z",
+        160
+      ],
+      [
+        "2026-11-19T06:20:56.594Z",
+        161
+      ],
+      [
+        "2026-11-19T06:21:56.605Z",
+        162
+      ],
+      [
+        "2026-11-19T06:22:56.621Z",
+        163
+      ],
+      [
+        "2026-11-19T06:23:56.632Z",
+        164
+      ],
+      [
+        "2026-11-19T06:24:56.656Z",
+        165
+      ],
+      [
+        "2026-11-19T06:25:56.676Z",
+        166
+      ],
+      [
+        "2026-11-19T06:26:56.698Z",
+        167
+      ],
+      [
+        "2026-11-19T06:27:56.723Z",
+        168
+      ],
+      [
+        "2026-11-19T06:28:56.748Z",
+        169
+      ],
+      [
+        "2026-11-19T06:29:56.782Z",
+        170
+      ],
+      [
+        "2026-11-19T06:30:56.806Z",
+        171
+      ],
+      [
+        "2026-11-19T06:31:56.825Z",
+        172
+      ],
+      [
+        "2026-11-19T06:32:56.837Z",
+        173
+      ],
+      [
+        "2026-11-19T06:33:56.858Z",
+        174
+      ],
+      [
+        "2026-11-19T06:34:56.871Z",
+        175
+      ],
+      [
+        "2026-11-19T06:35:56.888Z",
+        176
+      ],
+      [
+        "2026-11-19T06:36:56.904Z",
+        177
+      ],
+      [
+        "2026-11-19T06:37:56.918Z",
+        178
+      ],
+      [
+        "2026-11-19T06:38:56.932Z",
+        179
+      ],
+      [
+        "2026-11-19T06:39:56.954Z",
+        180
+      ],
+      [
+        "2026-11-19T06:40:56.964Z",
+        181
+      ],
+      [
+        "2026-11-19T06:41:56.974Z",
+        182
+      ],
+      [
+        "2026-11-19T06:42:56.985Z",
+        183
+      ],
+      [
+        "2026-11-19T06:43:57.005Z",
+        184
+      ],
+      [
+        "2026-11-19T06:44:57.023Z",
+        185
+      ],
+      [
+        "2026-11-19T06:45:57.039Z",
+        186
+      ],
+      [
+        "2026-11-19T06:46:57.061Z",
+        187
+      ],
+      [
+        "2026-11-19T06:47:57.080Z",
+        188
+      ],
+      [
+        "2026-11-19T06:48:57.096Z",
+        189
+      ],
+      [
+        "2026-11-19T06:49:57.106Z",
+        190
+      ],
+      [
+        "2026-11-19T06:50:57.128Z",
+        191
+      ],
+      [
+        "2026-11-19T06:51:57.150Z",
+        192
+      ],
+      [
+        "2026-11-19T06:52:57.177Z",
+        193
+      ],
+      [
+        "2026-11-19T06:53:57.188Z",
+        194
+      ],
+      [
+        "2026-11-19T06:54:57.201Z",
+        195
+      ],
+      [
+        "2026-11-19T06:55:57.223Z",
+        196
+      ],
+      [
+        "2026-11-19T06:56:57.240Z",
+        197
+      ],
+      [
+        "2026-11-19T06:57:57.253Z",
+        198
+      ],
+      [
+        "2026-11-19T06:58:57.276Z",
+        199
+      ],
+      [
+        "2026-11-19T06:59:57.288Z",
+        200
+      ],
+      [
+        "2026-11-19T07:00:57.312Z",
+        201
+      ],
+      [
+        "2026-11-19T07:01:57.329Z",
+        202
+      ],
+      [
+        "2026-11-19T07:02:57.353Z",
+        203
+      ],
+      [
+        "2026-11-19T07:03:57.365Z",
+        204
+      ],
+      [
+        "2026-11-19T07:04:57.389Z",
+        205
+      ]
+    ],
+    "observationStartUtc": "2026-11-19T03:36:49.278Z",
+    "lastObservationUtc": "2026-11-19T07:04:57.389Z",
+    "observationSpanSeconds": 12488.112,
+    "finalizerUtc": "2026-11-19T17:07:49.091Z",
+    "lastObservationToFinalizerSeconds": 36171.701
+  },
+  "signedWire": {
+    "startedUtc": "2026-11-19T04:00:53.415Z",
+    "updatedUtc": "2026-11-19T17:07:47.162Z",
+    "node": "v24.22.1",
+    "platform": "win32",
+    "releaseTransitions": 182,
+    "clientAcks": 364,
+    "stateChecks": 744,
+    "restarts": 2,
+    "briefReconnects": 20,
+    "idleEvictionsObserved": 1,
+    "tokenExpiryObserved": true,
+    "tokenRenewals": 1,
+    "compareGrants": 188,
+    "baselineRefusals": 184,
+    "verifiedRehearsals": 184,
+    "events": [
+      {
+        "utc": "2026-11-19T04:00:53.644Z",
+        "event": "Two clients connected to the baseline release"
+      },
+      {
+        "utc": "2026-11-19T04:00:53.814Z",
+        "event": "Holding the active server worker idle for 165 seconds"
+      },
+      {
+        "utc": "2026-11-19T04:03:38.870Z",
+        "event": "An actual idle worker reloaded on a real remote call"
+      },
+      {
+        "utc": "2026-11-19T05:01:57.478Z",
+        "event": "A real token expired. A new bootstrap session reconnected the existing client host"
+      },
+      {
+        "utc": "2026-11-19T05:24:01.368Z",
+        "event": "Server restarted and both open client hosts resumed with the same signed release"
+      },
+      {
+        "utc": "2026-11-19T06:47:14.266Z",
+        "event": "Server restarted and both open client hosts resumed with the same signed release"
+      }
+    ],
+    "approvalReturnToTwoAcksMs": {
+      "samples": 182,
+      "p50": 24,
+      "p95": 34,
+      "max": 59,
+      "pollIntervalMs": 20
+    },
+    "finalizerStatus": "passed",
+    "recordedFinalTimerSeconds": 47214,
+    "processSamples": {
+      "samples": 36,
+      "firstUtc": "2026-11-19T04:08:24.589Z",
+      "lastUtc": "2026-11-19T07:03:41.534Z",
+      "largestAdjacentGapSeconds": 300.629
+    },
+    "observationStartUtc": "2026-11-19T04:00:53.415Z",
+    "lastObservationUtc": "2026-11-19T07:03:41.534Z",
+    "observationSpanSeconds": 10968.119,
+    "finalizerUtc": "2026-11-19T17:07:47.162Z",
+    "lastObservationToFinalizerSeconds": 36245.628,
+    "revision": "199bfc9"
+  },
+  "processTreeSamples": [
+    {
+      "at": "2026-11-19T04:08:24.5897623+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 166.6
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 555.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 170.3
+      }
+    },
+    {
+      "at": "2026-11-19T04:13:25.2190899+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 168.2
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 557.9
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 171.0
+      }
+    },
+    {
+      "at": "2026-11-19T04:18:25.7183759+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 172.1
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 558.4
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 178.5
+      }
+    },
+    {
+      "at": "2026-11-19T04:23:26.1908384+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 170.1
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 560.6
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 175.4
+      }
+    },
+    {
+      "at": "2026-11-19T04:28:26.6676867+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 175.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 560.1
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 180.8
+      }
+    },
+    {
+      "at": "2026-11-19T04:33:27.1559971+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 173.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 560.1
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 176.3
+      }
+    },
+    {
+      "at": "2026-11-19T04:38:27.6856544+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 178.9
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 564.7
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 183.6
+      }
+    },
+    {
+      "at": "2026-11-19T04:43:28.1335614+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 176.7
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 567.5
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 179.6
+      }
+    },
+    {
+      "at": "2026-11-19T04:48:28.6043039+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 180.7
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 565.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 186.0
+      }
+    },
+    {
+      "at": "2026-11-19T04:53:29.0563456+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 179.5
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 564.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 182.9
+      }
+    },
+    {
+      "at": "2026-11-19T04:58:29.5386454+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 185.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 572.2
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 187.3
+      }
+    },
+    {
+      "at": "2026-11-19T05:03:29.9875259+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 184.3
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 592.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 187.6
+      }
+    },
+    {
+      "at": "2026-11-19T05:08:30.4613059+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 190.1
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 592.9
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 191.8
+      }
+    },
+    {
+      "at": "2026-11-19T05:13:30.9260866+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 186.0
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 554.5
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 186.5
+      }
+    },
+    {
+      "at": "2026-11-19T05:18:31.4071534+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 191.0
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 555.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 193.2
+      }
+    },
+    {
+      "at": "2026-11-19T05:23:31.8767939+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 188.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 554.6
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 189.3
+      }
+    },
+    {
+      "at": "2026-11-19T05:28:32.3167656+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 195.2
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 555.5
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 195.5
+      }
+    },
+    {
+      "at": "2026-11-19T05:33:32.8140612+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 191.7
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 556.5
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 192.3
+      }
+    },
+    {
+      "at": "2026-11-19T05:38:33.3014077+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 205.1
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 561.8
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 195.9
+      }
+    },
+    {
+      "at": "2026-11-19T05:43:33.7831274+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 193.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 559.4
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 195.6
+      }
+    },
+    {
+      "at": "2026-11-19T05:48:34.2848506+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 206.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 555.4
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 201.2
+      }
+    },
+    {
+      "at": "2026-11-19T05:53:34.7679545+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 196.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 555.2
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 198.1
+      }
+    },
+    {
+      "at": "2026-11-19T05:58:35.3237183+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 210.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 554.9
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 203.9
+      }
+    },
+    {
+      "at": "2026-11-19T06:03:35.7935200+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 200.1
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 566.1
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 200.1
+      }
+    },
+    {
+      "at": "2026-11-19T06:08:36.2578774+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 213.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 557.8
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 205.4
+      }
+    },
+    {
+      "at": "2026-11-19T06:13:36.7315236+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 202.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 561.3
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 203.7
+      }
+    },
+    {
+      "at": "2026-11-19T06:18:37.2224053+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 215.6
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 561.9
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 211.8
+      }
+    },
+    {
+      "at": "2026-11-19T06:23:37.7052723+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 205.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 564.2
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 210.1
+      }
+    },
+    {
+      "at": "2026-11-19T06:28:38.2012287+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 218.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 560.1
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 213.3
+      }
+    },
+    {
+      "at": "2026-11-19T06:33:38.6590451+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 207.6
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 562.1
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 213.7
+      }
+    },
+    {
+      "at": "2026-11-19T06:38:39.1075762+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 222.4
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 573.3
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 217.7
+      }
+    },
+    {
+      "at": "2026-11-19T06:43:39.5721056+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 212.8
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 571.2
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 214.9
+      }
+    },
+    {
+      "at": "2026-11-19T06:48:40.0444675+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 230.0
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 565.8
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 219.6
+      }
+    },
+    {
+      "at": "2026-11-19T06:53:40.4946380+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 216.0
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 575.4
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 217.2
+      }
+    },
+    {
+      "at": "2026-11-19T06:58:40.9856273+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 229.3
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 572.6
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 221.3
+      }
+    },
+    {
+      "at": "2026-11-19T07:03:41.5348777+00:00",
+      "signed": {
+        "processes": 2,
+        "privateMiB": 218.5
+      },
+      "browser": {
+        "processes": 13,
+        "privateMiB": 575.0
+      },
+      "wire": {
+        "processes": 2,
+        "privateMiB": 218.7
+      }
+    }
+  ],
+  "hostedBrowser": {
+    "source": "https://github.com/marioG1025/morph-factory/actions/runs/44469007641/job/135373647683",
+    "revision": "54e036c72aa01b3ce2030e1726913826c569f0f3",
+    "platform": "Ubuntu 24.04, Chromium",
+    "status": "failure",
+    "requestedMinutes": 65,
+    "firstCycleStartUtc": "2026-11-19T06:06:32.823Z",
+    "firstCompletedCycleUtc": "2026-11-19T06:06:33.615Z",
+    "lastCompletedCycleUtc": "2026-11-19T07:07:23.739Z",
+    "cycleObservationSpanSeconds": 3650.916,
+    "jobCompletedUtc": "2026-11-19T07:08:57Z",
+    "comparisonCycles": 61,
+    "fullSnapshots": 20,
+    "deltas": 41,
+    "scopedReads": 61,
+    "fullDeskReadsAfterBootstrap": 0,
+    "passiveComparisonPosts": 0,
+    "recordedComplete": false,
+    "failedCycle": 62,
+    "failedAtUtc": "2026-11-19T07:08:53.846Z",
+    "failedStep": "Waiting for explicit rehearsal success before approval and comparison",
+    "cause": "Undetermined from the hosted log"
+  },
+  "recoveryRevisionShortWire": {
+    "revision": "4b9773c",
+    "startedUtc": "2026-11-19T03:50:48.113Z",
+    "updatedUtc": "2026-11-19T03:58:18.130Z",
+    "node": "v24.22.1",
+    "platform": "win32",
+    "releaseTransitions": 5,
+    "clientAcks": 10,
+    "stateChecks": 24,
+    "restarts": 0,
+    "briefReconnects": 0,
+    "idleEvictionsObserved": 1,
+    "tokenExpiryObserved": false,
+    "tokenRenewals": 0,
+    "compareGrants": 8,
+    "baselineRefusals": 4,
+    "events": [
+      {
+        "utc": "2026-11-19T03:50:48.334Z",
+        "event": "Two clients connected to the baseline release"
+      },
+      {
+        "utc": "2026-11-19T03:50:48.508Z",
+        "event": "Holding the active server worker idle for 165 seconds"
+      },
+      {
+        "utc": "2026-11-19T03:53:33.559Z",
+        "event": "An actual idle worker reloaded on a real remote call"
+      }
+    ],
+    "approvalReturnToTwoAcksMs": {
+      "samples": 5,
+      "p50": 24,
+      "p95": 34,
+      "max": 34,
+      "pollIntervalMs": 20
+    },
+    "finalizerStatus": "passed",
+    "recordedFinalTimerSeconds": 450
+  },
+  "suspendedReviewer": {
+    "kind": "complete",
+    "at": "2026-11-19T06:34:16.676Z",
+    "smoke": false,
+    "disconnectedSeconds": 3660,
+    "originalExpiredForSeconds": 60,
+    "recoveryMs": 48,
+    "originalHandshakeRejected": false,
+    "renewedBootstraps": 1,
+    "fullSnapshot": true,
+    "sameDocument": true,
+    "sameRun": true,
+    "selectedPane": "checks",
+    "actorPosts": 1,
+    "observerPosts": 0,
+    "runtimePaused": true,
+    "ticksWhileAway": 1
+  },
+  "shortLocalDiagnostic": {
+    "platform": "Windows, Edge",
+    "sessionTtlSeconds": 60,
+    "completedCycles": 8,
+    "firstCompletedCycleUtc": "2026-11-19T17:10:41.393Z",
+    "lastCompletedCycleUtc": "2026-11-19T17:11:24.688Z",
+    "failedStep": "Waiting for a comparison response",
+    "reproducedHostedRehearsalFailure": false
+  },
+  "repeatedReleaseDiagnostic": {
+    "platform": "Windows, Chromium",
+    "completedApproveRestorePairs": 61,
+    "activeRelease": 123,
+    "candidateRelease": 124,
+    "observedLocalFailure": "WebAssembly memory allocation during browser rehearsal",
+    "originalHostedFailureCauseProven": false
+  },
+  "hostedFollowups": []
+}
