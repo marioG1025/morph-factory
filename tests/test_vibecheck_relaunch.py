@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import json
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import tempfile
@@ -43,8 +44,15 @@ class VibeCheckRelaunch(unittest.TestCase):
     def launch(self, port, state, *args):
         argv = ["vibecheck.py", "--port", str(port), "--state-dir", str(state), *map(str,args)]
         with patch.object(sys, "argv", argv), patch.object(vibecheck, "BASE", self.base), \
-                patch.object(vibecheck, "DeskHTTPServer", side_effect=AssertionError("Relaunch tried to bind an occupied port")):
+                patch.object(DeskHTTPServer, "serve_forever", side_effect=AssertionError("Relaunch started another server")):
             vibecheck.main()
+
+    def test_free_fixed_port_does_not_require_an_http_round_trip(self):
+        with socket.socket() as reservation:
+            reservation.bind(("127.0.0.1", 0))
+            port = reservation.getsockname()[1]
+        with patch.object(vibecheck, "HTTPConnection", side_effect=AssertionError("No listener to query")):
+            self.assertFalse(vibecheck.matching_listener(port, self.repo, self.state))
 
     def test_only_exact_checkout_and_state_reopen_in_the_browser(self):
         second_state = self.root / "another state"

@@ -1,5 +1,6 @@
 """Start a local Morph Factory desk with the verified VibeCheck date repair ready for review."""
 import argparse
+import errno
 from http.client import HTTPConnection, HTTPException
 import json
 from pathlib import Path
@@ -16,6 +17,15 @@ URL = "https://github.com/marioG1025/VibeCheck.git"
 
 def matching_listener(port, repo, state_dir):
     """Return false for a free port, true for the requested desk, or explain the conflict."""
+    # A connection to an unused Windows port can time out instead of returning
+    # connection-refused. A successful bind establishes availability without HTTP.
+    with DeskHTTPServer(("127.0.0.1", port), RequestHandler, bind_and_activate=False) as probe:
+        try:
+            probe.server_bind()
+            return False
+        except OSError as exc:
+            if exc.errno not in (errno.EADDRINUSE, errno.EACCES) and getattr(exc, "winerror", None) not in (10048, 10013):
+                raise
     hint = f"Stop the listener on port {port} or launch with --port 0 to choose a free port."
     connection = HTTPConnection("127.0.0.1", port, timeout=1.5)
     try:
