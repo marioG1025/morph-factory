@@ -30,11 +30,19 @@ The first browser pair’s median completed cycle took 1,730 ms and its 95th per
 
 The original Ubuntu job requested 65 minutes. Its first completed cycle was at 06:06:33.615 UTC and its 61st at 07:07:23.739 UTC. It recorded **20 full snapshots, 41 deltas, 61 run-specific report reads, zero extra full-state reads and zero passive comparison requests**. At 07:08:53 UTC on cycle 62, the runner timed out after 30 seconds waiting for the explicit rehearsal-success message. That cycle had not advanced to approval or product measurement. The job failed. Its log does not identify the underlying error. [Failed hosted job](https://github.com/marioG1025/morph-factory/actions/runs/44469007641/job/135373647683)
 
-A local Chromium reproduction completed 61 approve/restore pairs, then recorded a WebAssembly memory allocation failure when the browser rehearsed release 124 from release 123. Both tabs kept a single connection. This identifies the error in the local reproduction; the original hosted log captured only the rehearsal timeout.
+A local Chromium reproduction completed 61 approve/restore pairs, then recorded a WebAssembly memory allocation failure when the browser rehearsed release 124 from release 123. The original hosted log captured only the rehearsal timeout. After the factory began retiring replaced browser workers, the same local sequence rehearsed release 124 successfully. The operator measured four fixes and two unchanged controls. Both tabs kept one connection and recorded zero browser errors. [Worker-lifetime experiment](worker-lifetime.md) · [Two-tab regression](../../tests/browser/release-turnover.mjs)
 
 A separate rapid Windows probe with a 60-second token lifetime completed 8 cycles, then timed out waiting for a comparison response. It exercised a different failure stage. A short wire run on revision `4b9773c` completed 5 transitions and 10 acknowledgements in 7m 30s.
 
 A dedicated suspended-tab test held the reviewer offline for 61 real minutes. The existing document obtained one new session, received a full snapshot and displayed the operator’s saved run. The original credential had been expired for 60 seconds. This trace recorded no rejected handshake with that old token. The operator performed one comparison and the passive reviewer performed zero. [Suspended reviewer experiment](shared-comparison.md#observations)
+
+## Subsequent hosted attempts
+
+Each timed Ubuntu attempt used a new disposable desk. The counts show only cycles that finished all assertions.
+
+| Timed run | Revision | Job result | Completed cycles | Full snapshots / deltas | Report reads / extra full-state reads / peer comparison requests |
+| --- | --- | --- | ---: | --- | --- |
+| [5-minute job](https://github.com/marioG1025/morph-factory/actions/runs/44781206863/job/136444049125) | `3444912` | success | 5 | 1 / 4 | 5 / 0 / 0 |
 
 ## Windows process sampling
 

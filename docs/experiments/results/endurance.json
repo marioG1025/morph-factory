@@ -2325,7 +2325,44 @@
     "activeRelease": 123,
     "candidateRelease": 124,
     "observedLocalFailure": "WebAssembly memory allocation during browser rehearsal",
-    "originalHostedFailureCauseProven": false
+    "originalHostedFailureCauseProven": false,
+    "afterFix": {
+      "revision": "3444912",
+      "release": 124,
+      "fixed": 4,
+      "unchanged": 2,
+      "browserErrors": 0,
+      "sessionBootstrapsPerClient": [
+        1,
+        1
+      ],
+      "connectionsPerClient": [
+        1,
+        1
+      ]
+    }
   },
-  "hostedFollowups": []
+  "hostedFollowups": [
+    {
+      "source": "https://github.com/marioG1025/morph-factory/actions/runs/44781206863/job/136444049125",
+      "revision": "34449122f94d5f4d9d97df24c546c29c9dd03850",
+      "platform": "Ubuntu 24.04, Chromium",
+      "status": "success",
+      "requestedMinutes": 5,
+      "firstCycleStartUtc": "2026-11-20T17:14:45.458Z",
+      "firstCompletedCycleUtc": "2026-11-20T17:14:46.125Z",
+      "lastCompletedCycleUtc": "2026-11-20T17:18:49.540Z",
+      "cycleObservationSpanSeconds": 244.082,
+      "jobCompletedUtc": "2026-11-20T17:19:49Z",
+      "comparisonCycles": 5,
+      "fullSnapshots": 1,
+      "deltas": 4,
+      "scopedReads": 5,
+      "fullDeskReadsAfterBootstrap": 0,
+      "passiveComparisonPosts": 0,
+      "recordedComplete": true,
+      "completedUtc": "2026-11-20T17:19:44.802Z",
+      "recordedElapsedSeconds": 300
+    }
+  ]
 }
