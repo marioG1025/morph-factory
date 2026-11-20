@@ -44,3 +44,16 @@ node scripts/measure-adoption.mjs --tabs 1,2,4,8 --trials 20 --modes implicit,re
 ```
 
 The [runner](../../scripts/measure-adoption.mjs) prints JSON lines for the machine, group, per-tab and last-tab times, comparison outcome, and any setup, continuity or runtime failure. A failed group sets a nonzero exit status. `MORPH_VIBECHECK_REPO` can point to a local clone containing the pinned commit. All drafts, approvals and restores run on temporary checkouts and authorities.
+
+## After the worker lifetime fix
+
+On November 20, we repeated the two- and eight-tab measurements in Windows Edge 157.0.4341.60. The first checkout used the original worker pool. The second terminated each outgoing browser worker once its replacement was ready. All 32 approvals preserved the patch, pane and document. All eight groups finished with a real VibeCheck check that reported four fixes and two unchanged controls. [Worker lifetime experiment](worker-lifetime.md)
+
+| Open tabs | Approval | Original pool, ms | Terminate outgoing worker, ms |
+| ---: | --- | --- | --- |
+| 2 | One click | 501, 910, 188, 150 | 260, 469, 141, 147 |
+| 2 | Rehearsed before click | 132, 188, 69, 75 | 618, 186, 64, 66 |
+| 8 | One click | 509, 205, 160, 169 | 238, 189, 162, 1,713 |
+| 8 | Rehearsed before click | 108, 60, 58, 60 | 110, 74, 72, 68 |
+
+Each cell gives the first approval followed by three repeats, measured until the last tab could run Compare. Other browser tests shared the workstation. One eight-tab approval took 1.71 seconds. Four observations per group are too few to estimate a service-level percentile. Repeat with `node scripts/measure-adoption.mjs --tabs 2,8 --trials 4 --modes implicit,rehearsed`. [Original revision](https://github.com/marioG1025/morph-factory/tree/dec5fb74a8046f8326829fe0a479c7b2a63c576a) · [Worker retirement change](https://github.com/marioG1025/morph-factory/commit/34449122f94d5f4d9d97df24c546c29c9dd03850)
