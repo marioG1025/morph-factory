@@ -10,7 +10,11 @@ The [source ZIP experiment](distribution.md) starts from empty local state and e
 
 The [signed-in model experiment](agent-proposal.md) follows a real calendar failure to an independently generated patch and a separate replay. In a different experiment, the factory used its own publisher to open [a draft PR on this repository](https://github.com/marioG1025/morph-factory/pull/1). Two launcher checks changed from failing to passing, and the PR includes the base, tested tree and signed release digest. Repeating publication returned the existing PR.
 
+The [endurance report](endurance.md) follows the same open reviews across repeated comparisons, credential expiry, disconnection and process restarts. It includes machine-readable counts and a hosted Linux run.
+
 ## The product change and the factory change
+
+The factory also [reviewed its own cold-start patch](cold-start.md). Its check started the proposed factory on VibeCheck and opened eight review tabs simultaneously. The original listener dropped script requests. The candidate loaded all eight live reviews and the outer factory saved the tested Git tree.
 
 The [four-zone product browser experiment](product-browser.md) opens VibeCheck’s own React list and detail routes. Each calendar repair took the same 48 observations from 36 passes to 48, including 24 unchanged timestamp controls.
 

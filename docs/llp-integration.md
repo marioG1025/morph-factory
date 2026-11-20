@@ -44,6 +44,8 @@ The Python endpoint consults the current server layer before starting the work a
 
 ## Findings for a host implementer
 
+The [worker lifetime experiment](experiments/worker-lifetime.md) includes a small probe that runs the signed review pair repeatedly on the reference host. Chromium exhausted Wasm memory during a local rehearsal with worker reuse. Terminating retired workers through the upstream hook let the same workload complete 72 approval/restore pairs. The [adoption measurements](experiments/adoption.md#after-the-worker-lifetime-fix) include last-tab timings with both policies.
+
 | Observation | Reproduction |
 | --- | --- |
 | A JavaScript client and unmodified Go client agreed on the complete rendered node tree and stored state at six checkpoints. The Go client reused the original blob on restore. | [Cross-runtime parity](experiments/go-host.md) |
@@ -55,7 +57,11 @@ The Python endpoint consults the current server layer before starting the work a
 | A 264-byte LLP delta identified a saved VibeCheck run. On eight open documents, the operator ran one product check and the seven peers each fetched one matching report. A stopped process between saving and notifying recovered the run when its peers rejoined. | [Payloads and eight-tab test](experiments/shared-comparison.md) · [Interruption before notification](experiments/desk-restart.md) |
 | A Python-side release check alone left a short race between accepting the old grant and saving its report. An HTTP restore could commit in that gap. The desk now serializes the brief final save with release transitions while the project command continues outside the lock. | [Two-request ordering test](../tests/test_release_order.py) · [Withdraw during a real build](experiments/concurrent-build.md) |
 
+The long runs also exercised worker eviction, real credential expiry and publisher restarts. The upstream connection exposes diagnostic arrays containing sent and received frames. The factory retains its accepted signed envelope and periodically trims those arrays in the browser. The endurance measurements report whole-process memory for the observed local test groups. [Endurance report](experiments/endurance.md) · [Factory transport integration](../ui/layers/review-client.js)
+
 ## What to open first
+
+**Live lab** on the factory floor exposes a smaller upstream example. In Edge we entered an unfinished note, induced an Add failure on the signed v1 task layer, upgraded to v2, then repeated the failure. Both recoveries preserved the checklist, completion flags and note. The recovered v2 accepted the note as a new task. [Lab implementation and recovery checks](../ui/lab/lab.js)
 
 - **For the operator experience**, run `python3 vibecheck.py` and approve Compare results on the preloaded calendar repair. [Quickstart](../README.md#try-it-on-a-real-product)
 - **For an independent check**, run `node scripts/inspect-receipt.mjs docs/experiments/receipts/vibecheck-calendar.json --bundled`. This verifies the signed release, shipped Wasm and signed server rehearsal. The recorded counts are an unsigned observation. [Example receipt](experiments/receipts/vibecheck-calendar.json)
