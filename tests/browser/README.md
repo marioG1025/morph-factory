@@ -13,6 +13,12 @@ npm test
 
 The standard VibeCheck launcher obtains the pinned public repository. To use an existing local clone instead, set `MORPH_VIBECHECK_REPO` to its path. The test harness clones that checkout into its own temporary directory. Set `MORPH_BROWSER_EXECUTABLE` for an existing Chromium-compatible browser or `MORPH_PYTHON` to select a Python executable.
 
+## Endurance interval coverage
+
+Run `node tests/browser/soak.mjs` from the factory root. Set `MORPH_SOAK_MINUTES` for the timed interval and `MORPH_SOAK_INTERVAL_SECONDS` for the wait between comparisons. The wire runner accepts minutes and an output filename, for example `node runtime/tools/soak.mjs 5 wire-result.json`.
+
+Both runners take a heartbeat every five seconds during intentional waits, including the wire test's 165-second idle-worker check. A gap above 15 seconds on either the UTC or monotonic clock, or a backwards UTC reading, fails the interval. The output's `coverage` field includes the heartbeat count and longest observed gap. A failure includes the UTC timestamps on both sides of the interruption. Cycle and transition counts separately describe the work the factory completed. Rerun a failed interval on an awake host with a stable clock. [Coverage regression tests](../../runtime/tests/soak-coverage.test.mjs)
+
 ## Optional Firefox and WebKit acceptance
 
 The [cross-browser workflow](../../.github/workflows/browser-engines.yml) runs on manual dispatch. Each Ubuntu 24.04 job installs the browser build associated with the locked Playwright version and runs the same [two-tab Change review scenario](review-acceptance.mjs) as the default Chromium suite. The job summary records the engine version, platform and outcome. The first run passed on both engines. [Measured builds and job logs](../../docs/experiments/browser-engines.md)

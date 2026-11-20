@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { launchBrowser, startDesk } from "./desk.mjs";
+import { startCoverage } from "../../runtime/tools/soak-coverage.mjs";
 
 const duration = Number(process.env.MORPH_SOAK_MINUTES ?? 0);
 const interval = Number(process.env.MORPH_SOAK_INTERVAL_SECONDS ?? 300);
@@ -16,7 +17,7 @@ const log = (kind, data) => console.log(JSON.stringify({at:new Date().toISOStrin
 const sha = text => createHash("sha256").update(text).digest("hex");
 const desk = await startDesk();
 let browser, pages = [], phase = "open drafts", lastRehearsal;
-const started = Date.now();
+const started = performance.now(), coverage = startCoverage();
 let completed = 0;
 try {
   browser = await launchBrowser();
@@ -64,6 +65,7 @@ try {
   await pages[0].locator("#layer-checks").click();
   await pages[1].locator("#layer-diff").click();
   do {
+    coverage.check();
     const [active, observer] = pages;
     const cycle = completed + 1;
     const began = performance.now();
@@ -126,25 +128,30 @@ try {
     assert.equal(sha(final.diff), identity);
     assert.deepEqual(await Promise.all(pages.map(page => page.evaluate(() => performance.timeOrigin))), origins);
     assert.deepEqual(errors, []);
+    coverage.check();
     completed++;
     log("cycle", {cycle, elapsedMs:Math.round(performance.now() - began), fixed:result.summary.fixed,
       regressed:result.summary.regressed, release:result.releaseVersion, documentsPreserved:pages.length,
       observerMissedOffer:missed, peerRun:result.run, peerReceived:missed ? "full" : "delta",
       reportReads:reportReads - priorReports, stateReads:stateReads - priorStates, peerPosts});
-    const left = started + duration * 60000 - Date.now();
+    const left = started + duration * 60000 - performance.now();
     if (left <= 0) break;
     await delay(Math.min(interval * 1000, left));
-  } while (Date.now() < started + duration * 60000);
-  log("complete", {cycles:completed, elapsedSeconds:Math.round((Date.now()-started)/1000)});
+  } while (performance.now() < started + duration * 60000);
+  phase = "verify observed interval";
+  const observed = coverage.check();
+  log("complete", {cycles:completed, elapsedSeconds:Math.round((performance.now()-started)/1000), coverage:observed});
 } catch (error) {
+  const observed = coverage.report();
   const documents = await Promise.all(pages.map(page => page.evaluate(() => ({
     release:document.querySelector("#live-connection")?.textContent,
     feedback:document.querySelector("#release-feedback")?.textContent,
     events:[...document.querySelectorAll("#release-log li")].slice(0, 3).map(row => row.textContent)
   })).catch(() => null)));
-  log("failure", {cycle:completed+1, phase, lastRehearsal, documents, error:error.message.slice(0, 500)});
+  log("failure", {cycle:completed+1, phase, lastRehearsal, documents, coverage:observed, error:error.message.slice(0, 500)});
   throw error;
 } finally {
+  coverage.stop();
   await browser?.close();
   await desk.close();
 }

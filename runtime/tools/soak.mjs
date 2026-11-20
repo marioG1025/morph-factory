@@ -8,13 +8,15 @@ import { setTimeout as delay } from "node:timers/promises";
 import { startHost } from "../review-host.mjs";
 import { canonical, LiveHost, sha256, verifyManifest } from "../vendor/llp/llp-core.js";
 import { connectServer } from "../vendor/llp/remote-client.mjs";
+import { startCoverage } from "./soak-coverage.mjs";
 
 const minutes = Number(process.argv[2] || 5);
 if (!(minutes > 0 && minutes <= 240)) throw Error("Choose a duration between 0 and 240 minutes.");
 const reportPath = resolve(process.argv[3] || "soak-results.json");
 const stateDir = await mkdtemp(join(tmpdir(), "morph-soak-"));
-const began = Date.now(), deadline = began + minutes * 60_000;
-const summary = {startedUtc: new Date(began).toISOString(), requestedMinutes: minutes,
+const began = performance.now(), deadline = began + minutes * 60_000;
+const coverage = startCoverage();
+const summary = {startedUtc: new Date().toISOString(), requestedMinutes: minutes,
   status: "running", releaseTransitions: 0, clientAcks: 0, stateChecks: 0, restarts: 0,
   briefReconnects: 0, idleEvictionsObserved: 0, tokenExpiryObserved: false, tokenRenewals: 0,
   compareGrants: 0, baselineRefusals: 0, verifiedRehearsals: 0, events: []};
@@ -25,7 +27,7 @@ function event(text) { summary.events.push({utc: new Date().toISOString(), event
 async function snapshot() {
   const sorted = [...latencies].sort((a, b) => a-b);
   const quantile = q => sorted.length ? sorted[Math.ceil(q*sorted.length)-1] : null;
-  const report = {...summary, elapsedSeconds: Math.round((Date.now()-began)/1000), node: process.version,
+  const report = {...summary, elapsedSeconds: Math.round((performance.now()-began)/1000), coverage:summary.coverage ?? coverage.report(), node: process.version,
     platform: process.platform, updatedUtc: new Date().toISOString(),
     approvalReturnToTwoAcksMs: {samples: sorted.length, p50: quantile(.5), p95: quantile(.95), max: quantile(1),
       pollIntervalMs:20}};
@@ -33,9 +35,9 @@ async function snapshot() {
   await rename(reportPath + ".tmp", reportPath);
 }
 async function waitFor(predicate, label) {
-  const until = Date.now() + 12000;
+  const until = performance.now() + 12000;
   while (!predicate()) {
-    if (Date.now() > until) throw Error("Timeout: " + label);
+    if (performance.now() > until) throw Error("Timeout: " + label);
     await delay(20);
   }
 }
@@ -89,6 +91,7 @@ try {
   await ack();
   event("Two clients connected to the baseline release");
   do {
+    coverage.check();
     const before = server.status();
     if (before.release === "compare") await server.command({op: "restore", expectedVersion: before.version});
     else {
@@ -107,6 +110,7 @@ try {
       event("Holding the active server worker idle for 165 seconds");
       await snapshot();
       await delay(165000);
+      coverage.check();
       const lane = server.runtime.lane(server.runtime.tenant(initial.app));
       assert.equal(lane.slots.get("reviewService").evicted, true, "server worker must have idled");
       summary.idleEvictionsObserved++;
@@ -135,7 +139,7 @@ try {
       await ack();
       summary.briefReconnects++;
     }
-    if (Date.now() >= nextRestart) {
+    if (performance.now() >= nextRestart) {
       const prior = server.session();
       for (const client of clients) client.link.close();
       server.close();
@@ -149,18 +153,22 @@ try {
       await assertRemote();
       summary.restarts++;
       event("Server restarted and both open client hosts resumed with the same signed release");
-      nextRestart = Date.now() + 83 * 60_000;
+      nextRestart = performance.now() + 83 * 60_000;
     }
+    coverage.check();
     await snapshot();
     const interval = minutes < 5 ? 1000 : 60000;
-    await delay(Math.min(interval, Math.max(0, deadline-Date.now())));
-  } while (Date.now() < deadline);
+    await delay(Math.min(interval, Math.max(0, deadline-performance.now())));
+  } while (performance.now() < deadline);
+  summary.coverage = coverage.check();
   summary.status = "passed";
 } catch (error) {
   summary.status = "failed";
+  summary.coverage = coverage.report();
   event(error.message);
   process.exitCode = 1;
 } finally {
+  coverage.stop();
   for (const client of clients) { client.link?.close(); client.host.close(); }
   server?.close();
   await snapshot();
